@@ -121,3 +121,11 @@ Movement during the Auto Shot windup cancels it and restarts the ranged swing. M
 The overhead nameplate follows the dummy in the world and shows health, level and selection highlighting. Click its health bar to target the dummy. Original CSS borders and symbols use no game assets. Debuff icons show Hunter's Mark, the active Sting, damage-over-time effects and control effects with remaining time and stack counts where available. Timers read the encounter state and clear on expiry, replacement, target restoration or reset. The plate hides for a defeated, hidden or off-screen target. Combat text avoids the nameplate and debuff row.
 
 Run tools/nameplate-browser-check.mjs with BROWSER_DEBUG_URL, GAME_URL and a screenshot output directory to check aura timers, replacement, movement anchoring and click targeting.
+
+## SV Weave preset and guide
+
+New or invalid talent storage starts with Forever's SV Weave talents: 0/20/31, encoded as -00530501114-550200030050220151. Existing valid saved builds, including an intentionally empty build, remain available. Talents and How to both offer Load SV Weave & reset: this applies the build, saves it, resets the encounter, dismisses the pet, removes the offhand and places the hunter at 8.25 yd. Weapons remain the training equipment.
+
+Open How to (F2 by default) for setup, the melee swing window, spell priority, windup rules and weaving metrics. Both opening the guide and loading the preset are rebindable. The guide displays current ability keybinds.
+
+The preset and priority are based on Forever's SurvivalWeaveTalents and Melee Weave priority list: Hawk, no pet for Lone Wolf, Hunter's Mark upkeep, melee windows, Mongoose Bite when available, Strider Kick, missing Serpent Sting, Arcane Shot, then Multi-Shot if cast plus travel fits before the next weave. Aimed Shot and Summon Hawk are disabled in this preset. Raptor Strike is an automatic swing replacement in the simulator; the player queues it manually in this game. The simulator's movement guard uses a ready-on-arrival melee swing and at least one second until the next ranged auto, with 5 yd melee and 8 yd ranged boundaries. The arena retains its documented full ranged reset after melee.

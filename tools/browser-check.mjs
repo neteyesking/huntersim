@@ -23,6 +23,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 await send('Runtime.enable');
 await evaluate("localStorage.removeItem('hunter-talents-v2')");
 await send('Page.reload',{ignoreCache:true});await wait(2000);
+await evaluate("document.getElementById('clearTalents').click()");
 assert.equal(await evaluate("document.querySelectorAll('#actionBar .action').length"),59);
 assert.equal(await evaluate("document.querySelectorAll('#talentTrees .talent').length"),51);
 await evaluate("document.getElementById('talentBtn').click()");

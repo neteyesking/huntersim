@@ -149,3 +149,10 @@
 .target-panel{left:24px;transform:none;width:280px}
 @media(max-width:900px){.target-panel{left:12px;width:250px}}
 @media(max-width:650px){.target-panel{left:10px;width:235px}}
+
+#howToPanel{z-index:7}.weave-guide{width:min(660px,90vw);max-height:85vh;overflow-y:auto;box-sizing:border-box;scrollbar-width:thin;padding:28px 32px}
+.weave-guide h2{margin:9px 0 12px}.weave-guide h3{color:#e9cc91;font-size:16px;margin:25px 0 8px}.weave-guide p,.weave-guide li{font-size:13px;line-height:1.65;color:#c0d0c8}.weave-guide b{color:#efe5cf}.weave-guide ol{padding-left:20px}.weave-guide li{margin:9px 0}
+.guide-build{display:flex;flex-direction:column;gap:8px;border:1px solid #5b7869;border-radius:5px;padding:16px;background:#203f38}.guide-build strong{color:#ead29d}.guide-build span{font-size:12px;color:#b9d1ba}.guide-build small{font-size:11px;color:#a4b5ae;line-height:1.5}.guide-build .inline{align-self:flex-start}
+.guide-cycle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px;border:1px solid #526b59;background:#122c2b;border-radius:4px}.guide-cycle span{text-align:center;font-size:10px;color:#98b0a4;letter-spacing:.05em}.guide-cycle b{display:block;margin-top:5px;font-size:13px}.guide-cycle i{color:#d9b677;font-style:normal}
+.guide-keys{font-size:11px;line-height:1.8;color:#deca9f;padding-top:15px;border-top:1px solid #4a6355}.weave-guide .guide-note{font-size:11px;color:#93aaa0}.preset-controls{display:flex;gap:12px;align-items:center;margin:0 0 15px}.preset-controls span{font-size:11px;color:#d7c38e}
+@media(max-width:650px){.weave-guide{padding:24px 18px}.top-actions{gap:3px}.top-actions button{padding:6px 4px;font-size:9px}.brand{font-size:12px;gap:7px}.brand-mark{width:25px;height:25px}.preset-controls{flex-wrap:wrap}}

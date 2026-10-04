@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import {Combat, SPELLS, TREES, ACTIONS} from './combat.js';
 import {movementAxes, stepMovement, turnDelta, CameraRig, cameraCommand, bodyHeading, angleDifference, PressGesture} from './movement.js';
 import {HUMAN_HEIGHT, HUMAN_RADIUS} from './scale.js';
+import {SV_WEAVE,loadTalentBuild,isSurvivalWeave} from './presets.js';
+import {WEAVE_GUIDE} from './weave-guide.js';
 import {createNameplate,targetDebuffs,auraTime} from './nameplate.js';
 import {layoutCombatText} from './combat-text-layout.js';
 import {BINDING_GROUPS, DEFAULT_BINDINGS, eventChord, mouseChord, wheelChord, bindingLabel, actionForChord, held, rebind, loadBindings, saveBindings} from './bindings.js';
@@ -11,7 +13,7 @@ import './style.css';
 const app=document.querySelector('#app');
 app.innerHTML=`
 <div id="scene"></div><div id="targetNameplate" class="target-nameplate" hidden></div><div id="combatText" aria-hidden="true"></div>
-<div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="trainingBtn">Training</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
+<div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="trainingBtn">Training</button><button id="howToBtn">How to</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
 <div class="target-panel" id="targetPanel"><div class="eyebrow">TARGET · TRAINING DUMMY</div><div class="target-title"><strong>Clockwork Sentinel</strong><span id="targetPct">100%</span></div><div class="meter health"><i id="healthFill"></i></div><div class="target-stats"><span id="targetHp">50,000 / 50,000</span><span id="rangeText">18 yd</span></div><div id="targetAuras"></div></div>
 <div class="player-panel"><div class="eyebrow">HUNTER · LEVEL 60</div><div class="player-title"><strong>Wayfinder</strong><span id="manaText">3,000 / 3,000</span></div><div class="meter mana"><i id="manaFill"></i></div><div class="player-meta"><span id="aspectText">Aspect of the Hawk</span><span id="rapidText"></span></div><div id="hunterVitals" class="vitals"></div><div id="petVitals" class="vitals"></div><div class="pet-orders"><button id="petAttack">Pet attack</button><button id="petFollow">Follow</button><button id="petStay">Stay</button></div><div class="scale-note">1 grid square = 1 yd · human body 2.03 yd tall · combat reach 1.5 yd each</div></div>
 <div class="telemetry-column"><div class="status-card"><div class="eyebrow">ENCOUNTER</div><div class="statline"><span>Duration</span><strong id="timeText">0:00</strong></div><div class="statline"><span>Damage</span><strong id="damageText">0</strong></div><div class="statline"><span>DPS</span><strong id="dpsText">0</strong></div><div class="statline"><span>Position</span><strong id="positionText">18 yd</strong></div><div class="statline"><span>Auto Shot</span><strong id="autoText">ON</strong></div><button class="inline" id="autoBtn">Toggle Auto Shot <kbd id="autoKey">T</kbd></button><button class="inline" id="hitboxBtn">Show hitboxes</button></div>
@@ -28,13 +30,14 @@ app.innerHTML=`
 <div class="reticle"><div class="reticle-ring"></div><span id="reticleText">TARGET LOCKED</span></div>
 <div class="bottom"><div id="weaveStrip" class="weave-strip"><span class="weave-icon">➶</span><div class="weave-field"><i id="weaveFill"></i><span id="weaveZone">RANGED</span><b id="weaveCue">WAIT</b></div><span class="weave-icon melee-icon">⚔</span></div><div class="timer-bars"><div class="timer-row auto-row"><span class="timer-icon">➶</span><div class="timer-track auto-track"><i id="autoBar"></i><em id="multiTick" class="timer-tick multi-tick" title="Multi-Shot cast plus windup"></em><em id="windupTick" class="timer-tick windup-tick" title="Auto Shot windup begins"></em><span class="bar-title">AUTO SHOT</span><span class="bar-delay" id="autoDelay">+0.00</span></div><b id="autoBarText">0.5s</b></div><div class="timer-row windup-row"><span>WINDUP</span><div class="timer-track windup-track"><i id="windupBar"></i></div><b id="windupBarText">WAITING</b></div><div class="timer-row melee-row"><span class="timer-icon melee-icon">⚔</span><div class="timer-track melee-track"><i id="meleeBar"></i></div><b id="meleeBarText">2.4s</b></div></div><div id="castWrap"><div id="castLabel"></div><div class="cast-track"><i id="castFill"></i><i id="castWindupFill"></i><em id="castBoundary"></em></div></div><div id="spellTabs" class="spell-tabs"></div><div id="actionBar"></div><div class="hint" id="controlHint"></div></div>
 <div id="toast"></div>
-<div id="talentPanel" class="drawer hidden"><div class="drawer-head"><div><div class="eyebrow">BUILD YOUR HUNTER</div><h2>Talents <span id="talentPoints">0 / 51</span></h2></div><button class="close" id="talentClose">×</button></div><p class="drawer-intro">All 51 talents use Forever rank data. Left click to learn; right click to refund. Tier requirements, prerequisites and the 51 point budget are enforced. Builds save in this browser.</p><div id="talentTrees"></div><button class="inline" id="clearTalents">Clear talents</button></div>
+<div id="talentPanel" class="drawer hidden"><div class="drawer-head"><div><div class="eyebrow">BUILD YOUR HUNTER</div><h2>Talents <span id="talentPoints">0 / 51</span></h2></div><button class="close" id="talentClose">×</button></div><p class="drawer-intro">All 51 talents use Forever rank data. Left click to learn; right click to refund. Tier requirements, prerequisites and the 51 point budget are enforced. Builds save in this browser.</p><div class="preset-controls"><button class="inline" id="svPreset">Load SV Weave &amp; reset</button><span id="buildLabel"></span></div><div id="talentTrees"></div><button class="inline" id="clearTalents">Clear talents</button></div>
 <div id="helpPanel" class="modal hidden"><div class="help-card"><button class="close" id="helpClose">×</button><div class="eyebrow">FIELD GUIDE</div><h2>Hunter controls</h2><p>Left click the dummy to target it; left click empty ground to clear the target. Move and face the stationary dummy. With two human combat reaches, Auto Shot starts at 8 yd between body centers and reaches 38 yd with both human combat reaches. Melee reaches 5 yd. Face the target and keep enough mana. Moving during a cast interrupts it.</p><div class="help-grid" id="helpGrid"></div><button class="inline" id="helpBindings">Edit keybinds</button><button id="helpPlay">Enter the ground</button></div></div><div id="keybindPanel" class="modal hidden"><div class="keybind-card"><div class="drawer-head"><div><div class="eyebrow">CUSTOMIZE CONTROLS</div><h2>Keybinds</h2></div><button class="close" id="keybindClose">×</button></div><p>Click a binding, then press a key, mouse button or wheel direction. Backspace clears it. Escape cancels capture.</p><div id="bindingConflict" class="binding-conflict hidden"></div><div id="bindingGroups"></div><div class="keybind-actions"><button class="inline" id="restoreBindings">Restore defaults</button><button class="inline" id="keybindDone">Done</button></div></div></div>`;
 
 const $=id=>document.getElementById(id);
 const combat=new Combat();
 for(const [tab,body,otherTab,otherBody] of [['weavingTab','weavingStats','combatLogTab','combatLogBody'],['combatLogTab','combatLogBody','weavingTab','weavingStats']])$(tab).onclick=()=>{$(body).classList.remove('hidden');$(otherBody).classList.add('hidden');$(tab).classList.add('selected');$(otherTab).classList.remove('selected')};
-try {const saved=JSON.parse(localStorage.getItem('hunter-talents-v2'));if(saved&&validTalents(saved))combat.talents=saved}catch{}
+combat.talents=loadTalentBuild(window.localStorage);
+const howTo=document.createElement('div');howTo.id='howToPanel';howTo.className='modal hidden';howTo.innerHTML=WEAVE_GUIDE;app.appendChild(howTo);
 const training=document.createElement('div');training.id='trainingPanel';training.className='modal hidden';
 training.innerHTML='<div class="help-card training-card"><button class="close" id="trainingClose">×</button><div class="eyebrow">ENCOUNTER LAB</div><h2>Training settings</h2><p>Single dummy, fixed level 60 training equipment. Optional sparring enables incoming melee attacks at 5 yd so you can practice defenses and pet threat.</p><label><input id="sparringOption" type="checkbox"> Dummy sparring</label><label><input id="enrageOption" type="checkbox"> Target enraged</label><label><input id="hiddenOption" type="checkbox"> Target stealthed</label><label><input id="offhandOption" type="checkbox"> Equip training offhand</label><label><input id="regenOption" type="checkbox"> Target health regeneration</label><label>Target armor <input id="armorOption" type="number" min="0" max="20000" step="500" value="0"></label><label>Target type <select id="targetTypeOption"></select></label><label>Pet family <select id="petFamilyOption"></select></label><label><input id="petAutoOption" type="checkbox" checked> Pet autocast</label><div id="petSkills" class="pet-skills"></div><div class="training-actions"><button id="callPetBtn">Call pet</button><button id="petHurtBtn">Wound pet</button><button id="petDebuffBtn">Poison pet</button><button id="petStunBtn">Stun pet</button><button id="natureHitBtn">Nature damage</button><button id="respawnBtn">Restore target</button><button id="revivePetBtn">Revive pet</button><button id="endViewBtn">End remote view / feign</button></div><p class="training-note">Pet family abilities and utility effects are training approximations. Multi-Shot and area effects hit the single dummy. Lacerate and Falcon are supplemental data records; live availability is unverified.</p></div>';
 app.appendChild(training);
@@ -224,6 +227,7 @@ function renderBindings(){
 }
 function refreshBindingLabels(){
  for(const action of ACTIONS)buttons.get(action.id).querySelector('.action-key').textContent=bindingLabel(bindings['spell:'+action.id]);
+ $('guideKeys').textContent=['RaptorStrike','MongooseBite','StriderKick','SerpentSting','ArcaneShot','MultiShot'].map(id=>(SPELLS[id]?.name||id)+': '+bindingLabel(bindings['spell:'+id])).join(' · ');
  $('autoKey').textContent=bindingLabel(bindings.toggleAuto);
  $('controlHint').textContent=`${bindingLabel(bindings.forward)} / ${bindingLabel(bindings.backward)} move · ${bindingLabel(bindings.turnLeft)} / ${bindingLabel(bindings.turnRight)} turn · ${bindingLabel(bindings.strafeLeft)} / ${bindingLabel(bindings.strafeRight)} strafe · ${bindingLabel(bindings.keybinds)} keybinds`;
  renderHelp();renderBindings();
@@ -262,9 +266,11 @@ function command(id){
  if(id==='toggleAuto'){$('autoBtn').click();return}
  if(id==='toggleHitboxes'){$('hitboxBtn').click();return}
  if(id==='talents'){$('talentBtn').click();return}
+ if(id==='howTo'){$('howToBtn').click();return}
+ if(id==='loadSvWeave'){$('svPreset').click();return}
  if(id==='controls'){$('helpBtn').click();return}
  if(id==='keybinds'){$('keybindBtn').click();return}
- if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);return}
+ if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);setModal('howToPanel',false);return}
  if(id==='resetEncounter'){$('resetBtn').click();return}
  if(id==='clearTalents'){$('clearTalents').click();return}
  if(id==='zoomIn')rig.zoom(1);
@@ -277,6 +283,13 @@ $('helpBindings').onclick=()=>{setModal('helpPanel',false);$('keybindBtn').click
 refreshBindingLabels();
 $('talentBtn').onclick=()=>{renderTalents();setModal('talentPanel',true)};
 $('talentClose').onclick=()=>setModal('talentPanel',false);
+$('howToBtn').onclick=()=>setModal('howToPanel',true);
+$('howToClose').onclick=$('howToPlay').onclick=()=>setModal('howToPanel',false);
+$('svPreset').onclick=$('guidePreset').onclick=()=>{
+ combat.talents={...SV_WEAVE};combat.options.dualWield=false;$('offhandOption').checked=false;
+ $('resetBtn').click();player.z=8.25;lastHudRange=8.25;saveTalents();renderTalents();
+ setModal('howToPanel',false);setModal('talentPanel',false);showToast('SV Weave loaded · 0/20/31 · no pet');
+};
 $('helpBtn').onclick=()=>setModal('helpPanel',true);
 $('helpClose').onclick=$('helpPlay').onclick=()=>setModal('helpPanel',false);
 $('resetBtn').onclick=()=>{combat.reset();player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.type=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose()}projectiles.length=0;showToast('Encounter reset')};
@@ -290,6 +303,7 @@ function editTalent(field,delta){
  combat.talents=next;saveTalents();renderTalents();
 }
 function renderTalents(){
+ $('buildLabel').textContent=isSurvivalWeave(combat.talents)?'SV Weave · 0 / 20 / 31':'Custom build';
  const total=Object.values(combat.talents).reduce((a,b)=>a+b,0);$('talentPoints').textContent=total+' / 51';$('pointsBadge').textContent=total+'/51';
  const host=$('talentTrees');host.replaceChildren();
  for(const tree of TREES){
@@ -322,7 +336,7 @@ window.addEventListener('keydown',e=>{
  if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;
  const chord=eventChord(e),id=actionForChord(bindings,chord);
  if(id||['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
- const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel'].some(name=>!$(name).classList.contains('hidden'));
+ const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel'].some(name=>!$(name).classList.contains('hidden'));
  if(panelOpen){
   if(id==='closePanel'||e.code==='Escape')command('closePanel');
   else if(id==='clearTalents'&&!$('talentPanel').classList.contains('hidden'))command(id);
@@ -345,7 +359,7 @@ document.addEventListener('wheel',e=>{
 },{capture:true,passive:false});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('mousedown',e=>{
- if(['talentPanel','helpPanel','keybindPanel','trainingPanel'].some(name=>!$(name).classList.contains('hidden')))return;
+ if(['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel'].some(name=>!$(name).classList.contains('hidden')))return;
  if(e.button===0)gestures.set(e.button,new PressGesture(performance.now()/1000,e.clientX,e.clientY));
  pressed.add('Mouse'+e.button);updateMouseState();
  const id=actionForChord(bindings,mouseChord(e));
@@ -432,7 +446,7 @@ function updateCombatText(){
 let last=performance.now();
 function frame(now){
  const dt=Math.min(.05,(now-last)/1000);last=now;
- const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel'].some(name=>!$(name).classList.contains('hidden'));
+ const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel'].some(name=>!$(name).classList.contains('hidden'));
  keys.clear();
  for(const [id,key] of [['forward','w'],['backward','s'],['turnLeft','a'],['turnRight','d'],['strafeLeft','q'],['strafeRight','e']])if(held(bindings,id,pressed))keys.add(key);
  const axes=blocked||combat.health<=0?{forward:0,side:0,turn:0}:movementAxes(keys,mouse,autorun);

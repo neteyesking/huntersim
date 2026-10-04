@@ -36,3 +36,5 @@ Keep documentation and test utilities portable. Do not commit machine-specific p
 Auto Shot swing, windup and release run independently of spell casts and channels. Do not gate ranged autos on Combat.cast or reuse a spell windup for the Auto Shot display. Movement during windup still cancels it; target, range and facing checks remain active.
 
 Target nameplate rendering and debuff snapshots live in src/nameplate.js. Read existing combat expiry timestamps; do not maintain separate aura timers in the HUD. main.js projects the overhead anchor each frame and passes the plate bounds to combat-text-layout.js to keep damage numbers clear.
+
+SV Weave talents and saved-build fallback are in src/presets.js; src/weave-guide.js owns the How to content. Keep the talent string aligned with Forever's SurvivalWeaveTalents and distinguish its APL from manual movement and queued Raptor Strike in this game. Preserve valid saved builds when changing defaults.

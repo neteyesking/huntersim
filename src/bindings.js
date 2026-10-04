@@ -22,6 +22,7 @@ export const BINDING_GROUPS = [
   ]},
   {name:'Interface and encounter', items:[
     ['toggleAuto','Toggle Auto Shot','KeyT'],['toggleHitboxes','Toggle hitboxes','KeyH'],
+    ['howTo','Open weaving guide','F2'],['loadSvWeave','Load SV Weave and reset encounter',''],
     ['talents','Open talents','KeyK'],['controls','Open controls','F1'],
     ['keybinds','Open keybinds','KeyB'],['closePanel','Close panel','Escape'],
     ['resetEncounter','Reset encounter',''],['clearTalents','Clear talents',''],

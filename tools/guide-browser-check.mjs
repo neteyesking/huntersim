@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+const debug=process.env.BROWSER_DEBUG_URL,game=process.env.GAME_URL;
+if(!debug||!game)throw Error('Set BROWSER_DEBUG_URL and GAME_URL before running browser checks');
+const tab=await(await fetch(debug+'/json/new?about:blank',{method:'PUT'})).json();
+const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);
+let id=0;const pending=new Map(),errors=[];
+ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')errors.push(m.params);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result)}};
+const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}))});
+const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value};
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const until=async expression=>{for(let i=0;i<100;i++){const value=await evaluate(expression);if(value)return value;await wait(100)}throw Error('Timed out: '+expression)};
+let previous;
+try{
+ await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:game});
+ await until("!!document.getElementById('howToBtn')");
+ previous=await evaluate("localStorage.getItem('hunter-talents-v2')");
+ await evaluate("localStorage.removeItem('hunter-talents-v2')");await send('Page.reload');await wait(500);
+ await until("document.getElementById('pointsBadge')?.textContent==='51/51'");
+ assert.equal(await evaluate("document.getElementById('buildLabel').textContent"),'SV Weave · 0 / 20 / 31');
+ await send('Input.dispatchKeyEvent',{type:'keyDown',code:'F2',key:'F2'});await send('Input.dispatchKeyEvent',{type:'keyUp',code:'F2',key:'F2'});
+ assert.equal(await evaluate("document.getElementById('howToPanel').classList.contains('hidden')"),false);
+ assert.ok((await evaluate("document.getElementById('guideKeys').textContent")).includes('Multi-Shot: 3'));
+ const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-sv-guide.png',Buffer.from(shot.data,'base64'));
+ await evaluate("document.getElementById('guidePreset').click()");await wait(100);
+ assert.equal(await evaluate("document.getElementById('howToPanel').classList.contains('hidden')"),true);
+ assert.ok((await evaluate("document.getElementById('rangeText').textContent")).startsWith('8.3'));
+ assert.equal(await evaluate("document.getElementById('offhandOption').checked"),false);
+ assert.ok((await evaluate("document.getElementById('petVitals').textContent")).includes('No active pet'));
+ assert.equal(await evaluate("JSON.parse(localStorage.getItem('hunter-talents-v2')).laceratingStrikes"),1);
+ await evaluate("document.getElementById('clearTalents').click()");await send('Page.reload');await wait(500);await until("document.getElementById('pointsBadge')?.textContent==='0/51'");
+ await evaluate("document.getElementById('talentBtn').click();document.getElementById('svPreset').click()");await wait(100);
+ assert.equal(await evaluate("document.getElementById('pointsBadge').textContent"),'51/51');
+ assert.equal(await evaluate("document.getElementById('talentPanel').classList.contains('hidden')"),true);
+ await evaluate("document.getElementById('howToBtn').click()");
+ await send('Input.dispatchKeyEvent',{type:'keyDown',code:'Escape',key:'Escape'});await send('Input.dispatchKeyEvent',{type:'keyUp',code:'Escape',key:'Escape'});
+ assert.equal(await evaluate("document.getElementById('howToPanel').classList.contains('hidden')"),true);
+ assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',defaultBuild:'0/20/31',savedBuildPreserved:true,presetRange:8.25,runtimeErrors:errors.length}));
+}finally{
+ if(previous!==undefined)await evaluate(previous===null?"localStorage.removeItem('hunter-talents-v2')":"localStorage.setItem('hunter-talents-v2',"+JSON.stringify(previous)+")");
+ ws.close();await fetch(debug+'/json/close/'+tab.id);
+}
