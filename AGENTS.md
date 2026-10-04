@@ -38,3 +38,5 @@ Auto Shot swing, windup and release run independently of spell casts and channel
 Target nameplate rendering and debuff snapshots live in src/nameplate.js. Read existing combat expiry timestamps; do not maintain separate aura timers in the HUD. main.js projects the overhead anchor each frame and passes the plate bounds to combat-text-layout.js to keep damage numbers clear.
 
 SV Weave talents and saved-build fallback are in src/presets.js; src/weave-guide.js owns the How to content. Keep the talent string aligned with Forever's SurvivalWeaveTalents and distinguish its APL from manual movement and queued Raptor Strike in this game. Preserve valid saved builds when changing defaults.
+
+Production caching is handled by vite.config.js and the self-contained tools/release-loader.js embedded in built HTML. Emit release.json with every build and publish it alongside assets and HTML. Keep hashed assets and a unique release ID; do not replace the inline loader with a bundle that stale HTML might be unable to fetch.

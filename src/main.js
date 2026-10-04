@@ -1,3 +1,4 @@
+document.documentElement.dataset.build=__HUNTER_BUILD_ID__;
 import * as THREE from 'three';
 import {Combat, SPELLS, TREES, ACTIONS} from './combat.js';
 import {movementAxes, stepMovement, turnDelta, CameraRig, cameraCommand, bodyHeading, angleDifference, PressGesture} from './movement.js';
