@@ -37,4 +37,3 @@ try{
  assert.equal(await evaluate("document.getElementById('targetNameplate').classList.contains('selected')"),true);
  assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',initial,runtimeErrors:errors.length}));
 }finally{await send('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyE',key:'e'});ws.close();await fetch(debug+'/json/close/'+tab.id)}
-
