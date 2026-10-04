@@ -1,0 +1,34 @@
+# Hunter Training Ground agent guide
+
+This repository contains the playable Three.js Hunter dummy encounter. Make browser game changes here. The combat catalog is derived from Forever simulator data.
+
+## Work locally
+
+Use Node.js 22 or newer. Run npm install and npm run dev from the repository root. Verify with npm test and npm run build. Use npm run build:pages for the separate Pages output.
+
+The browser files are src/main.js (scene, input, HUD and render loop), src/movement.js (movement and camera), src/combat.js (encounter mechanics and event output), src/scale.js (yards, capsules and attack range), src/bindings.js (keybinds), src/style.css (HUD), and src/hunter-data.json (extracted Forever data). Tests are adjacent to source files. tools/extract-hunter.py regenerates hunter data from Forever. Read README.md for current scope and known approximations.
+
+## Gameplay behavior
+
+Read MOVEMENT.md for movement constants, camera transitions, jump momentum and current limitations. Combat text supports four concurrent texts per unit, a 1.5 s lifetime, white physical damage, gold spell damage, a critical size pop, and upward motion for ordinary numbers and misses.
+
+Use the exported Hunter spell and talent data for combat changes. The browser's combat model is a playable approximation, not a direct execution of Forever's Go simulator. Keep that distinction explicit in docs and UI. Use original geometry and UI; no WoW assets.
+
+## Editing workflow
+
+Check the current game file and documented behavior first. Make the change in the game, add focused tests where mechanics can regress, run tests and build, then verify the running page. When the dev server is already running, let Vite reload; verify that the page reflects the latest files. Update README.md when scope or controls change. Future chats should read this file before editing.
+## Complete Hunter catalog
+
+Read COVERAGE.md before changing an ability or talent. It maps all 51 talents and groups all 63 exported ability records, and lists effects still limited by the training environment. src/catalog.js owns action pages, talent gates, description rendering and talent prerequisite validation. src/combat.js owns pet lifecycle/abilities, traps, defensive sparring, target state and the combat timers. Keybinds are derived from the catalog; add abilities there so every input remains bindable.
+
+The expanded regression suite is src/coverage.test.js. Its all-ability execution pass catches missing handlers but does not establish numeric live-game parity. Keep focused outcome tests for changed mechanics. Supplemental spell-store records and approximations must remain identified in COVERAGE.md.
+
+Prefer atomic file replacement and verify the running page after edits. Keep existing release servers running unless a task explicitly requires restarting them.
+
+Action-bar availability must come from Combat.abilityState(), which canCast() also uses. Keep the HUD and execution checks together there; do not duplicate range or proc rules in main.js. src/availability.test.js checks the transitions, and tools/browser-check.mjs checks icon states after walking into melee.
+
+Read MOVEMENT.md before changing physics, camera, or input handling. src/movement.js owns the numeric rules; src/main.js owns browser input and rendering. tools/movement-browser-check.mjs tests the integration through real key/mouse input. The exported movementSnapshot() returns copied state for browser debugging; it must not become a mutation API.
+
+Auto Shot display uses Combat.autoTimer() and autoSwingStart. Do not use lastAutoShot as the bar start after melee or a cancelled windup; it remains the timestamp for interval measurements. src/weaving.js tracks release delays and completed melee weaves. Keep measurement updates in combat, not the render loop. See README.md for metric definitions and tools/weaving-browser-check.mjs for the input-driven check.
+
+Keep documentation and test utilities portable. Do not commit machine-specific paths, private network addresses, or temporary share URLs. Browser checks receive BROWSER_DEBUG_URL and GAME_URL through their environment; the data exporter receives its input directory through --source.
