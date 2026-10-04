@@ -1,4 +1,4 @@
-export function layoutCombatText(items, viewportWidth, viewportHeight) {
+export function layoutCombatText(items, viewportWidth, viewportHeight, obstacles=[]) {
   const placed=[];
   for(const item of items){
     const gap=10;
@@ -8,7 +8,7 @@ export function layoutCombatText(items, viewportWidth, viewportHeight) {
     for(let lane=0;lane<24;lane++){
       const shift=lane===0?0:Math.ceil(lane/2)*(lane%2?-1:1)*(item.width+gap);
       const candidate=Math.max(item.width/2,Math.min(viewportWidth-item.width/2,baseX+shift));
-      const overlaps=placed.some(other=>
+      const overlaps=[...obstacles,...placed].some(other=>
         Math.abs(candidate-other.x)<(item.width+other.width)/2+gap &&
         baseY-item.height<other.y+gap &&
         baseY>other.y-other.height-gap

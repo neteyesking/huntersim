@@ -34,3 +34,5 @@ Auto Shot display uses Combat.autoTimer() and autoSwingStart. Do not use lastAut
 Keep documentation and test utilities portable. Do not commit machine-specific paths, private network addresses, or temporary share URLs. Browser checks receive BROWSER_DEBUG_URL and GAME_URL through their environment; the data exporter receives its input directory through --source.
 
 Auto Shot swing, windup and release run independently of spell casts and channels. Do not gate ranged autos on Combat.cast or reuse a spell windup for the Auto Shot display. Movement during windup still cancels it; target, range and facing checks remain active.
+
+Target nameplate rendering and debuff snapshots live in src/nameplate.js. Read existing combat expiry timestamps; do not maintain separate aura timers in the HUD. main.js projects the overhead anchor each frame and passes the plate bounds to combat-text-layout.js to keep damage numbers clear.

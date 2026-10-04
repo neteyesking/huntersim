@@ -115,3 +115,9 @@ The optional data exporter requires SIMULATOR_SOURCE to identify the input data 
 Auto Shot has its own swing and 0.5 s windup. It can start, continue and release while another spell is casting or channeling, including Aimed Shot, Multi-Shot and Volley. Starting a spell during its windup does not interrupt or postpone it. The Auto Shot windup row always shows that independent timer; the spell cast bar shows the spell's own phases.
 
 Movement during the Auto Shot windup cancels it and restarts the ranged swing. Movement before windup does not reset the swing clock, but the hunter must stop before windup can begin. Target, range and facing requirements and explicit Auto Shot stop effects still apply. Spell casting alone adds no ranged delay or interrupted-windup count.
+
+## Target nameplate
+
+The overhead nameplate follows the dummy in the world and shows health, level and selection highlighting. Click its health bar to target the dummy. Original CSS borders and symbols use no game assets. Debuff icons show Hunter's Mark, the active Sting, damage-over-time effects and control effects with remaining time and stack counts where available. Timers read the encounter state and clear on expiry, replacement, target restoration or reset. The plate hides for a defeated, hidden or off-screen target. Combat text avoids the nameplate and debuff row.
+
+Run tools/nameplate-browser-check.mjs with BROWSER_DEBUG_URL, GAME_URL and a screenshot output directory to check aura timers, replacement, movement anchoring and click targeting.

@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+const debug=process.env.BROWSER_DEBUG_URL,game=process.env.GAME_URL;
+if(!debug||!game)throw Error('Set BROWSER_DEBUG_URL and GAME_URL before running browser checks');
+const tab=await(await fetch(debug+'/json/new?about:blank',{method:'PUT'})).json();
+const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);
+let id=0;const pending=new Map(),errors=[];
+ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')errors.push(m.params);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result)}};
+const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}))});
+const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value};
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const until=async expression=>{for(let i=0;i<100;i++){const value=await evaluate(expression);if(value)return value;await wait(100)}throw Error('Timed out: '+expression)};
+try{
+ await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:game});
+ await until("!!document.querySelector('.plate-select')");
+ await evaluate("document.getElementById('resetBtn').click();document.getElementById('autoBtn').click();document.querySelector('[data-spell=HuntersMark]').click()");
+ await until("!!document.querySelector('[data-aura=HuntersMark]')");
+ await until("document.querySelector('[data-spell=SerpentSting]').dataset.unavailableReason==='ready'");
+ await evaluate("document.querySelector('[data-spell=SerpentSting]').click()");
+ await until("(()=>{if(document.querySelector('[data-aura=SerpentSting]'))return true;const b=document.querySelector('[data-spell=SerpentSting]');if(b.dataset.unavailableReason==='ready')b.click();return false})()");
+ const initial=await evaluate("({visible:!document.getElementById('targetNameplate').hidden,mark:document.querySelector('[data-aura=HuntersMark]').title,sting:document.querySelector('[data-aura=SerpentSting]').title,timer:document.querySelector('[data-aura=SerpentSting] .plate-aura-time').textContent,x:document.getElementById('targetNameplate').style.left})");
+ assert.equal(initial.visible,true);
+ await wait(1100);
+ assert.notEqual(await evaluate("document.querySelector('[data-aura=SerpentSting] .plate-aura-time').textContent"),initial.timer);
+ await send('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyE',key:'e'});await wait(400);await send('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyE',key:'e'});
+ assert.notEqual(await evaluate("document.getElementById('targetNameplate').style.left"),initial.x);
+ await evaluate("document.getElementById('autoBtn').click()");await wait(2100);
+ const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-nameplate.png',Buffer.from(shot.data,'base64'));
+ await evaluate("document.querySelector('[data-spell=ScorpidSting]').click()");
+ await until("(()=>{if(document.querySelector('[data-aura=ScorpidSting]'))return true;const b=document.querySelector('[data-spell=ScorpidSting]');if(b.dataset.unavailableReason==='ready')b.click();return false})()" );assert.equal(await evaluate("!!document.querySelector('[data-aura=SerpentSting]')"),false);
+ await evaluate("document.getElementById('resetBtn').click()");await wait(100);
+ assert.equal(await evaluate("document.querySelectorAll('.plate-aura').length"),0);
+ const point=await evaluate("[{x:innerWidth*.75,y:innerHeight*.55},{x:innerWidth*.3,y:innerHeight*.45}].find(p=>document.elementFromPoint(p.x,p.y)?.tagName==='CANVAS')");assert.ok(point);
+ await send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});await wait(60);await send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});await wait(100);
+ assert.equal(await evaluate("document.getElementById('targetNameplate').classList.contains('selected')"),false);
+ await evaluate("document.querySelector('.plate-select').click()");await wait(100);
+ assert.equal(await evaluate("document.getElementById('targetNameplate').classList.contains('selected')"),true);
+ assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',initial,runtimeErrors:errors.length}));
+}finally{await send('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyE',key:'e'});ws.close();await fetch(debug+'/json/close/'+tab.id)}
+

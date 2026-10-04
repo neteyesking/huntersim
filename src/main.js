@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {Combat, SPELLS, TREES, ACTIONS} from './combat.js';
 import {movementAxes, stepMovement, turnDelta, CameraRig, cameraCommand, bodyHeading, angleDifference, PressGesture} from './movement.js';
 import {HUMAN_HEIGHT, HUMAN_RADIUS} from './scale.js';
+import {createNameplate,targetDebuffs,auraTime} from './nameplate.js';
 import {layoutCombatText} from './combat-text-layout.js';
 import {BINDING_GROUPS, DEFAULT_BINDINGS, eventChord, mouseChord, wheelChord, bindingLabel, actionForChord, held, rebind, loadBindings, saveBindings} from './bindings.js';
 import {PET_FAMILIES, RECORDS, changeTalent, validTalents, describe} from './catalog.js';
@@ -9,7 +10,7 @@ import './style.css';
 
 const app=document.querySelector('#app');
 app.innerHTML=`
-<div id="scene"></div><div id="combatText" aria-hidden="true"></div>
+<div id="scene"></div><div id="targetNameplate" class="target-nameplate" hidden></div><div id="combatText" aria-hidden="true"></div>
 <div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="trainingBtn">Training</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
 <div class="target-panel" id="targetPanel"><div class="eyebrow">TARGET · TRAINING DUMMY</div><div class="target-title"><strong>Clockwork Sentinel</strong><span id="targetPct">100%</span></div><div class="meter health"><i id="healthFill"></i></div><div class="target-stats"><span id="targetHp">50,000 / 50,000</span><span id="rangeText">18 yd</span></div><div id="targetAuras"></div></div>
 <div class="player-panel"><div class="eyebrow">HUNTER · LEVEL 60</div><div class="player-title"><strong>Wayfinder</strong><span id="manaText">3,000 / 3,000</span></div><div class="meter mana"><i id="manaFill"></i></div><div class="player-meta"><span id="aspectText">Aspect of the Hawk</span><span id="rapidText"></span></div><div id="hunterVitals" class="vitals"></div><div id="petVitals" class="vitals"></div><div class="pet-orders"><button id="petAttack">Pet attack</button><button id="petFollow">Follow</button><button id="petStay">Stay</button></div><div class="scale-note">1 grid square = 1 yd · human body 2.03 yd tall · combat reach 1.5 yd each</div></div>
@@ -352,7 +353,7 @@ renderer.domElement.addEventListener('mousedown',e=>{
  if(id!=='cameraOrbit'&&id!=='cameraSteer')command(id);
  if(mouse.left&&mouse.right){autorun=false;for(const gesture of gestures.values())gesture.cancelled=true;}
  lastX=e.clientX;lastY=e.clientY;
- if(mouse.left||mouse.right)renderer.domElement.requestPointerLock?.();
+ if(mouse.left||mouse.right)renderer.domElement.requestPointerLock?.()?.catch(()=>{});
 });
 window.addEventListener('mouseup',e=>{
  const gesture=gestures.get(e.button);gestures.delete(e.button);
@@ -383,6 +384,10 @@ renderer.domElement.addEventListener('wheel',e=>{
  command(id);
 },{passive:false});function resize(){const w=window.innerWidth,h=window.innerHeight;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h)}
 window.addEventListener('resize',resize);resize();
+const nameplate=$('targetNameplate');
+const drawNameplate=createNameplate(nameplate,()=>setTargeted(true));
+const plateAnchor=new THREE.Vector3();
+let plateObstacles=[];
 const floatingTexts=[];
 const textAnchor=new THREE.Vector3();
 function clearCombatText(){
@@ -419,7 +424,7 @@ function updateCombatText(){
   const rect=item.node.getBoundingClientRect();
   layouts.push({item,x:(textAnchor.x+1)*.5*window.innerWidth,y:(1-textAnchor.y)*.5*window.innerHeight,width:rect.width,height:rect.height});
  }
- for(const placement of layoutCombatText(layouts,window.innerWidth,window.innerHeight)){
+ for(const placement of layoutCombatText(layouts,window.innerWidth,window.innerHeight,plateObstacles)){
   placement.item.node.style.left=placement.x+'px';
   placement.item.node.style.top=placement.y+'px';
  }
@@ -449,7 +454,7 @@ function frame(now){
  const {eye,look,alpha}=rig.seat(combat.auras.eagleEye?{x:0,z:0,height:6}:controlled,dt,translating);
  avatar.visible=remote||combat.auras.eagleEye||alpha>0;
  for(const {material,opacity} of avatarMaterials){material.opacity=opacity*(remote||combat.auras.eagleEye?1:alpha);material.transparent=material.opacity<1;material.depthWrite=material.opacity===1;}
- camera.position.set(eye.x,eye.y,eye.z);camera.lookAt(look.x,look.y,look.z);
+ camera.position.set(eye.x,eye.y,eye.z);camera.lookAt(look.x,look.y,look.z);camera.updateMatrixWorld();
  if(!blocked)combat.tick(dt,player,!remote&&(moving||player.height>0));
  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i],t=(combat.time-p.start)/p.duration;p.mesh.position.lerpVectors(p.from,p.to,Math.min(1,t));if(t>=1){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();projectiles.splice(i,1)}}
  for(const event of combat.visualEvents.splice(0)){
@@ -480,7 +485,17 @@ function updateHud(){
  $('damageText').textContent=Math.floor(combat.damage).toLocaleString();$('dpsText').textContent=Math.floor(combat.damage/Math.max(combat.time,1)).toLocaleString();
  $('aspectText').textContent=SPELLS[combat.aspect]?.name||'Aspect of the Hawk';$('rapidText').textContent=combat.auras.rapidFire?'Rapid Fire '+Math.ceil(combat.auras.rapidFire-combat.time)+'s':'';
  $('autoText').textContent=combat.autoShot?'ON':'OFF';
- const auras=Object.entries(combat.debuffs).filter(([k,v])=>k!=='slowPercent'&&v>combat.time).map(([k,v])=>k+' '+Math.ceil(v-combat.time)+'s');if(combat.auras.mark)auras.push("Hunter's Mark");if(combat.sting)auras.push(SPELLS[combat.sting.id].name);$('targetAuras').textContent=auras.join(' · ');
+ const auras=targetDebuffs(combat);
+ $('targetAuras').textContent=auras.map(a=>a.name+' '+auraTime(a.remaining)).join(' · ');
+ plateAnchor.set(0,HUMAN_HEIGHT+.5,0).project(camera);
+ const plateVisible=!!visible&&combat.targetHealth>0&&plateAnchor.z>=-1&&plateAnchor.z<=1&&Math.abs(plateAnchor.x)<1&&Math.abs(plateAnchor.y)<1;
+ drawNameplate({combat,selected:player.targeted,x:(plateAnchor.x+1)*window.innerWidth/2,y:(1-plateAnchor.y)*window.innerHeight/2,visible:plateVisible,auras});
+ plateObstacles=[];
+ if(plateVisible){
+  const bounds=nameplate.getBoundingClientRect(),icons=nameplate.querySelector('.plate-debuffs').getBoundingClientRect();
+  const top=auras.length?Math.min(bounds.top,icons.top):bounds.top;
+  plateObstacles.push({x:bounds.left+bounds.width/2,y:bounds.bottom,width:Math.max(bounds.width,icons.width),height:bounds.bottom-top});
+ }
  outerRing.scale.setScalar(combat.rangeFor('AutoShot')/38);
  const valid=player.targeted&&range>=combat.minRangeFor('AutoShot')&&range<=combat.rangeFor('AutoShot')&&combat.facing(player)&&combat.targetHealth>0;
  $('reticleText').textContent=!player.targeted?'NO TARGET · CLICK DUMMY':combat.targetHealth<=0?'TARGET DEFEATED':valid?'TARGET LOCKED':range<combat.minRangeFor('AutoShot')?'RANGED DEAD ZONE':range>combat.rangeFor('AutoShot')?'OUT OF RANGE':'TURN TO FACE';
