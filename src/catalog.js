@@ -11,7 +11,7 @@ export const CHANNELS={Volley:6,MendPet:5,TameBeast:20};
 export const PRIMARY=['ArcaneShot','AimedShot','MultiShot','SerpentSting','ScorpidSting','HuntersMark','RaptorStrike','MongooseBite','RapidFire','SniperShot','AspectOfTheHawk','AspectOfTheBeast'];
 export function category(id){
  if(PRIMARY.includes(id))return 'Core';
- if(id.startsWith('Aspect')||id==='HeartOfTheLion'||id==='TrueshotAura')return 'Aspects & auras';
+ if(id.startsWith('Aspect')||id==='TrueshotAura')return 'Aspects & auras';
  if(TRAPS.includes(id)||['FeignDeath','Deterrence','Disengage','Flare','EnchantedFlare'].includes(id))return 'Traps & defense';
  if(['CallPet','DismissPet','RevivePet','MendPet','FeedPet','TameBeast','BeastTraining','EyesOfTheBeast','Intimidation','BestialWrath','SummonHawk'].includes(id))return 'Pets';
  if(id.startsWith('Track')||['BeastLore','EagleEye','ScareBeast'].includes(id))return 'Utility';
@@ -19,7 +19,7 @@ export function category(id){
 }
 export const ACTIONS=Object.keys(SPELLS).filter(id=>id!=='AutoShot').map(id=>({id,talent:TALENT_GATES[id],category:category(id),tint:MELEE.has(id)?'#dd8e69':TRAPS.includes(id)?'#a4d78a':'#e2c38c'}));
 export const isShot=id=>id.endsWith('Shot')||id.endsWith('Sting')||id==='SummonHawk';
-export const isHostile=id=>!id.startsWith('Aspect')&&!id.startsWith('Track')&&!TRAPS.includes(id)&&!['AutoShot','RapidFire','Deterrence','FeignDeath','TrueshotAura','HeartOfTheLion','CallPet','DismissPet','RevivePet','MendPet','FeedPet','BeastTraining','EyesOfTheBeast','EagleEye','Flare','EnchantedFlare','BestialWrath','Intimidation'].includes(id);
+export const isHostile=id=>!id.startsWith('Aspect')&&!id.startsWith('Track')&&!TRAPS.includes(id)&&!['AutoShot','RapidFire','Deterrence','FeignDeath','TrueshotAura','CallPet','DismissPet','RevivePet','MendPet','FeedPet','BeastTraining','EyesOfTheBeast','EagleEye','Flare','EnchantedFlare','BestialWrath','Intimidation'].includes(id);
 export function talentValue(ranks,field,index=0){
  const rank=ranks[field]||0,t=TALENTS[field];
  return !rank||!t?0:t.curves[index]?.[rank-1]??t.data.effects[index]?.value??0;

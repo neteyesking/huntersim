@@ -37,7 +37,7 @@ The **Keybinds** button (default **B**) edits movement, camera mouse buttons and
 python3 tools/extract-hunter.py --source "$SIMULATOR_SOURCE"
 ```
 
-The combat engine has training handlers for 63 Hunter ability records, all 51 talents and 19 pet families. Use the action-bar pages for the expanded spellbook, and **Training** for pet selection, sparring, target creature type, armor, enrage, stealth and health regeneration. Pet attack/follow/stay buttons sit beneath the hunter frame. All Hunter and pet abilities have keybinding entries.
+The combat engine has training handlers for 60 Hunter ability records, all 51 talents and 19 pet families. Use the action-bar pages for the expanded spellbook, and **Training** for pet selection, sparring, target creature type, armor, enrage, stealth and health regeneration. Pet attack/follow/stay buttons sit beneath the hunter frame. All Hunter and pet abilities have keybinding entries.
 
 Read [COVERAGE.md](COVERAGE.md) for the complete ability and talent mapping, source evidence, checks and remaining parity limits. The browser remains a training approximation with fixed equipment and a simplified combat table. It does not execute Forever's Go simulator, and its utility, pet, trap and encounter models are not fully verified against the live game. Supplemental spell-store records are labeled in Training settings.
 

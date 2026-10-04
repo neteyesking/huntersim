@@ -8,7 +8,7 @@ const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin'
 export class Combat {
  constructor(random=Math.random){this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false};this.petFamily='Cat';this.reset()}
  reset(){
-  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,autoSwingStart:0,nextAuto:2.8,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,nextViper:3,threat:0,petThreat:0,trainingOpen:false,pet:null});
+  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,autoSwingStart:0,nextAuto:2.8,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
   this.weaving=new WeavingStats();
   this.log('Training begins.');
  }
@@ -22,8 +22,8 @@ export class Combat {
  minRangeFor(id){return attackRange(SPELLS[id]).min}
  petActive(){return !!this.pet?.active&&this.pet.health>0}
  stats(){
-  const lion=this.auras.lion?1.21:1,agi=200*lion*(1+this.pct('lightningReflexes')),intellect=100*lion;
-  const common=450+(agi-200)+intellect*this.pct('carefulAim')+(this.auras.lion?40:0);
+  const agi=200*(1+this.pct('lightningReflexes')),intellect=100;
+  const common=450+(agi-200)+intellect*this.pct('carefulAim');
   return {agi,intellect,melee:common+(this.auras.howl?RECORDS.FuriousHowlTriggered.effects[0].value:0)+(['AspectOfTheBeast','AspectOfTheFalcon'].includes(this.aspect)?this.aspect==='AspectOfTheBeast'?110:120:0),
    ranged:common+(['AspectOfTheHawk','AspectOfTheFalcon'].includes(this.aspect)?120:0)+(this.auras.mark?71:0)+(this.auras.trueshot?SPELLS.TrueshotAura.effects[0].value:0),
    crit:.2+this.pct('lethalAttacks')+(agi-200)/5300};
@@ -120,7 +120,6 @@ export class Combat {
    case 'Deterrence':this.buff('deterrence',duration);break;
    case 'HuntersMark':this.buff('mark',duration);break;
    case 'TrueshotAura':this.buff('trueshot',duration);break;
-   case 'HeartOfTheLion':this.buff('lion',-1);break;
    case 'FeignDeath':
     this.autoShot=false;this.raptorQueued=false;
     if(this.random()<Math.max(0,.04-this.pct('survivalTactics')))this.log('Feign Death resisted','miss');
@@ -155,7 +154,6 @@ export class Combat {
   if(this.petActive())m*=1+this.pct('focusedFire');
   else if(!pet)m*=1+this.pct('loneWolf');
   if(!pet&&this.options.targetType===tracks[this.tracking])m*=1+this.pct('improvedTracking');
-  if(!pet&&this.aspect==='AspectOfTheViper')m*=.9;
   if(rangedWeapon.has(id))m*=1+this.pct('rangedWeaponSpecialization');
   if(['AimedShot','MultiShot','Volley'].includes(id))m*=1+this.pct('barrage');
   if(id==='SerpentSting')m*=(1+this.pct('improvedStings'))*(1+this.pct('improvedSerpentSting'));
@@ -227,7 +225,6 @@ export class Combat {
    case 'TranquilizingShot':this.options.enraged=false;break;
    case 'ScareBeast':this.control('fear',20);this.autoShot=false;break;
    case 'Lacerate':this.dot(id,v,3,21);break;
-   case 'BlackArrow':this.control('slow',30);this.debuffs.slowPercent=70;this.dot(id,10,2,30,{drain:10});break;
    case 'SummonHawk':
     base=108+.05*this.stats().ranged;
     if(this.hawks.length>=2)this.hawks.shift();
@@ -358,12 +355,11 @@ export class Combat {
  }
  tick(dt,p,moving){
   dt=clamp(dt,0,.05);this.time+=dt;this.moving=!!moving;
-  this.maxHealth=4000*(1+this.pct('survivalist'))*(this.auras.lion?1.21:1);this.health=Math.min(this.health,this.maxHealth);
+  this.maxHealth=4000*(1+this.pct('survivalist'));this.health=Math.min(this.health,this.maxHealth);
   if(this.options.targetRegen&&this.targetHealth>0)this.targetHealth=Math.min(this.targetMaxHealth,this.targetHealth+dt*100*(this.debuffs.healingReduced?.5:1));
   this.maxMana=3000+(this.stats().intellect-100)*15;
   const castingRegen=Math.min(1,this.pct('bestialDiscipline',1)+Math.max(this.auras.serpentRegen?this.pct('rapidRecuperation'):0,this.auras.killingRegen?this.pct('rapidRecuperation',1):0)+(this.auras.resourceful?.5:0));
   this.mana=Math.min(this.maxMana,this.mana+dt*22*(this.time-this.lastSpend>=5?1:castingRegen));
-  if(this.time>=this.nextViper){this.nextViper+=3;if(this.aspect==='AspectOfTheViper')this.mana=Math.min(this.maxMana,this.mana+this.maxMana*.1)}
   if(this.value('spiritBond',1)&&this.nextSpirit>this.time+this.value('spiritBond',1))this.nextSpirit=this.time+this.value('spiritBond',1);
   if(this.time>=this.nextSpirit){this.nextSpirit=this.time+(this.value('spiritBond',1)||10);if(this.petActive()&&this.rank('spiritBond')){this.health=Math.min(this.maxHealth,this.health+this.maxHealth*.01);this.pet.health=Math.min(this.pet.maxHealth,this.pet.health+this.pet.maxHealth*.01)}}
   if(moving){this.interrupt();delete this.auras.feign;delete this.auras.eagleEye}

@@ -60,7 +60,7 @@ text="""# Hunter gameplay coverage
 
 ## Scope and evidence
 
-The browser has handlers for 63 Hunter ability records (62 spell buttons plus Auto Shot), all 51 talents, and 19 pet families. This is playable training coverage. Exact live-game parity has not been established.
+The browser has handlers for 60 Hunter ability records (59 spell buttons plus Auto Shot), all 51 talents, and 19 pet families. This is playable training coverage. Exact live-game parity has not been established.
 
 The data exporter reads a supplied Forever spell store, generated Hunter spell ranks, talent trees, talent rank curves, and pet families. Effects that Forever intentionally skips for its damage simulation are implemented here from their data and descriptions.
 
@@ -80,7 +80,7 @@ src/catalog.js owns categories, talent gates, descriptions, and talent validatio
 | Volley | Interruptible channel with damage each second. |
 | Immolation, Explosive, Freezing and Frost Traps | Placement at the hunter, two-second arming, proximity trigger, shared cooldown, damage/periodic damage or control. |
 | Deterrence, Feign Death | Avoidance buff; resisted or successful threat reset and attack suppression. Movement or another spell ends feigning. |
-| Hawk, Beast, Monkey, Cheetah, Pack, Wild and Viper Aspects | Exclusive aspects: attack power, dodge, movement/daze, Nature mitigation or mana recovery/damage penalty. Pack affects this solo hunter. |
+| Hawk, Beast, Monkey, Cheetah, Pack and Wild Aspects | Exclusive aspects: attack power, dodge, movement/daze, Nature mitigation. Pack affects this solo hunter. |
 | Trueshot Aura | Ranged attack power buff. No other party members exist. |
 | Call, Dismiss, Revive, Mend and Feed Pet | Pet lifecycle, interrupted casts/channels, health, focus, healing, poison cleanse and happiness recovery. Food is unlimited in training. |
 | Intimidation, Bestial Wrath | Pet critical/stun/threat effect and damage/control immunity. |
@@ -91,7 +91,7 @@ src/catalog.js owns categories, talent gates, descriptions, and talent validatio
 | Flare, Enchanted Flare | Reveals the stealthed training dummy. The arena has no magical darkness or separate invisible units. |
 | Track Beasts, Demons, Dragonkin, Elementals, Giants, Humanoids and Undead | Exclusive tracked type, used by Improved Tracking. |
 | Track Hidden | Reveals the training target. There is no minimap population. |
-| Black Arrow, Lacerate, Aspect of the Falcon, Heart of the Lion | Supplemental spell-store records with slow/drain/damage, bleed, combined aspect or stat/AP effects. Their current live availability is unverified. |
+| Lacerate, Aspect of the Falcon | Supplemental spell-store records with bleed or combined aspect effects. Their current live availability is unverified. |
 
 Every Hunter ability above has a keybinding entry. Pet attack/follow/stay and family abilities, including Growl and Cower, also have binding entries.
 
@@ -112,7 +112,7 @@ Sparring attacks every two seconds while the hunter is in melee range or an atta
 
 ## Verification
 
-- npm test: 62 tests, including an execution pass over all 63 Hunter abilities and damage checks for all 19 pet families.
+- npm test: combat, movement, camera and weaving tests, including an execution pass over all 60 Hunter abilities and damage checks for all 19 pet families.
 - npm run build: production bundle.
 - tools/browser-check.mjs: headless Chrome CDP check of action pages, 51 talent entries, talent persistence, training settings, pet call/order, keybinds and runtime exceptions. It expects BROWSER_DEBUG_URL and GAME_URL to identify an isolated Chrome profile with the game open. Run with Node 22 and a screenshot output directory.
 - These checks verify the browser implementation; they are not a numeric comparison against a running game or the entire Go simulator.
