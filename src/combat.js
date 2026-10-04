@@ -415,7 +415,7 @@ export class Combat {
  }
  tickWeapons(player,moving){
     const range=this.distance(player);
-    const ranged=!this.cast&&this.targetVisible()&&player.targeted!==false&&range>=this.minRangeFor('AutoShot')&&range<=this.rangeFor('AutoShot')&&this.facing(player);
+    const ranged=this.targetVisible()&&player.targeted!==false&&range>=this.minRangeFor('AutoShot')&&range<=this.rangeFor('AutoShot')&&this.facing(player);
     if(moving&&this.autoWindupStart!==null){
       this.weaving.windupClips++;
       this.autoWindupStart=null;

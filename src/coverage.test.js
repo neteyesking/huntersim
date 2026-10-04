@@ -138,8 +138,7 @@ test('self buffs work without a target and each active talent spell is gated',()
  }
  const c=quiet();assert.equal(c.castSpell('AspectOfTheMonkey',{...ranged,targeted:false}),true);
 });
-test('casting prevents Auto Shot windup, and melee requires facing the target',()=>{
- const c=new Combat(()=>.9);c.castSpell('AimedShot',ranged);advance(c,2.3);assert.equal(c.autoWindupStart,null);
+test('melee requires facing the target',()=>{
  const m=quiet();m.nextMelee=0;advance(m,3,{...melee,yaw:0});assert.equal(m.damage,0);
 });
 

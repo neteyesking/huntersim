@@ -146,3 +146,48 @@ test('clearing the target blocks attacks while self buffs remain available',()=>
   for(let i=0;i<80;i++)combat.tick(.05,close,false);
   assert.equal(combat.previousMelee,0);
 });
+for(const id of ['AimedShot','MultiShot','Volley'])test('Auto Shot starts and fires during '+id,()=>{
+ const c=new Combat(()=>.9);
+ for(let i=0;i<250;i++)c.tick(.01,player,false);
+ assert.equal(c.castSpell(id,player),true);
+ const cast=c.cast,until=cast.until;
+ for(let i=0;i<35;i++)c.tick(.01,player,false);
+ assert.ok(c.autoWindupStart!==null);
+ assert.equal(c.cast,cast);
+ while(c.lastAutoShot===null)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.lastAutoShot-3.3)<1e-8);
+ assert.equal(c.cast,cast);assert.equal(c.cast.until,until);
+ assert.equal(c.weaving.windupClips,0);
+ assert.ok(c.projectiles.some(p=>p.id==='AutoShot'));
+ while(c.time<until+.01)c.tick(.01,player,false);
+ assert.equal(c.cast,null);
+});
+test('starting a cast during Auto Shot windup preserves its release time',()=>{
+ const c=new Combat(()=>.9);
+ for(let i=0;i<290;i++)c.tick(.01,player,false);
+ const start=c.autoWindupStart,end=c.autoWindupEnd;
+ assert.equal(c.castSpell('AimedShot',player),true);
+ c.tick(.01,player,false);
+ assert.equal(c.autoWindupStart,start);assert.equal(c.autoWindupEnd,end);
+ while(c.lastAutoShot===null)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.lastAutoShot-end)<1e-8);assert.equal(c.cast.id,'AimedShot');
+ assert.equal(c.weaving.windupClips,0);
+});
+test('movement during overlapping cast and Auto Shot windup cancels both',()=>{
+ const c=new Combat(()=>.9);
+ for(let i=0;i<290;i++)c.tick(.01,player,false);
+ assert.equal(c.castSpell('AimedShot',player),true);
+ c.tick(.01,player,true);
+ assert.equal(c.cast,null);assert.equal(c.autoWindupStart,null);assert.equal(c.lastAutoShot,null);
+ assert.equal(c.weaving.windupClips,1);assert.equal(c.autoTimer().progress,0);
+});
+test('movement before the windup leaves the ranged swing clock running',()=>{
+ const c=new Combat(()=>.9);const ready=c.nextAuto;
+ for(let i=0;i<200;i++)c.tick(.01,player,true);
+ assert.equal(c.nextAuto,ready);assert.equal(c.autoSwingStart,0);assert.equal(c.weaving.windupClips,0);
+ assert.equal(c.castSpell('AimedShot',player),false);
+ c.tick(.01,player,false);
+ assert.equal(c.castSpell('AimedShot',player),true);
+ while(c.lastAutoShot===null)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.lastAutoShot-3.3)<1e-8);
+});

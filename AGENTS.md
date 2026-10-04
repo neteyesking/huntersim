@@ -32,3 +32,5 @@ Read MOVEMENT.md before changing physics, camera, or input handling. src/movemen
 Auto Shot display uses Combat.autoTimer() and autoSwingStart. Do not use lastAutoShot as the bar start after melee or a cancelled windup; it remains the timestamp for interval measurements. src/weaving.js tracks release delays and completed melee weaves. Keep measurement updates in combat, not the render loop. See README.md for metric definitions and tools/weaving-browser-check.mjs for the input-driven check.
 
 Keep documentation and test utilities portable. Do not commit machine-specific paths, private network addresses, or temporary share URLs. Browser checks receive BROWSER_DEBUG_URL and GAME_URL through their environment; the data exporter receives its input directory through --source.
+
+Auto Shot swing, windup and release run independently of spell casts and channels. Do not gate ranged autos on Combat.cast or reuse a spell windup for the Auto Shot display. Movement during windup still cancels it; target, range and facing checks remain active.

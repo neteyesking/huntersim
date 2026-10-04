@@ -22,7 +22,7 @@ app.innerHTML=`
 <div class="statline" title="Time inside the 8-yard ranged boundary, including the dead zone; last completed weave / average"><span>Last / avg time inside</span><strong id="weaveAway">— / —</strong></div>
 <div class="statline" title="Main-hand white or Raptor Strike swing attempts, including misses; last weave / average"><span>Swings per weave</span><strong id="weaveSwings">— / —</strong></div>
 <div class="statline" title="Time from crossing back into ranged distance until the next Auto Shot fires, for the last completed weave"><span>Return → shot</span><strong id="returnToShot">—</strong></div>
-<div class="statline" title="Auto Shot windups interrupted by movement, a cast, facing, or range loss"><span>Interrupted windups</span><strong id="windupClips">0</strong></div>
+<div class="statline" title="Auto Shot windups interrupted by movement, facing, or range loss"><span>Interrupted windups</span><strong id="windupClips">0</strong></div>
 <div id="weaveSession" class="weave-session">Shoot, weave in, then return.</div></div><div id="combatLogBody" class="hidden"><div id="logRows"></div></div></div></div>
 <div class="reticle"><div class="reticle-ring"></div><span id="reticleText">TARGET LOCKED</span></div>
 <div class="bottom"><div id="weaveStrip" class="weave-strip"><span class="weave-icon">➶</span><div class="weave-field"><i id="weaveFill"></i><span id="weaveZone">RANGED</span><b id="weaveCue">WAIT</b></div><span class="weave-icon melee-icon">⚔</span></div><div class="timer-bars"><div class="timer-row auto-row"><span class="timer-icon">➶</span><div class="timer-track auto-track"><i id="autoBar"></i><em id="multiTick" class="timer-tick multi-tick" title="Multi-Shot cast plus windup"></em><em id="windupTick" class="timer-tick windup-tick" title="Auto Shot windup begins"></em><span class="bar-title">AUTO SHOT</span><span class="bar-delay" id="autoDelay">+0.00</span></div><b id="autoBarText">0.5s</b></div><div class="timer-row windup-row"><span>WINDUP</span><div class="timer-track windup-track"><i id="windupBar"></i></div><b id="windupBarText">WAITING</b></div><div class="timer-row melee-row"><span class="timer-icon melee-icon">⚔</span><div class="timer-track melee-track"><i id="meleeBar"></i></div><b id="meleeBarText">2.4s</b></div></div><div id="castWrap"><div id="castLabel"></div><div class="cast-track"><i id="castFill"></i><i id="castWindupFill"></i><em id="castBoundary"></em></div></div><div id="spellTabs" class="spell-tabs"></div><div id="actionBar"></div><div class="hint" id="controlHint"></div></div>
@@ -537,10 +537,9 @@ function updateHud(){
  $('weaveStrip').dataset.zone=zone.toLowerCase().replaceAll(' ','-');
  $('weaveStrip').dataset.cue=cue.toLowerCase().replaceAll(' ','-');
  $('weaveStrip').classList.toggle('inactive',combat.targetHealth<=0||!player.targeted);
- const rangedWindup=combat.cast?.windupDuration>0&&combat.time>=combat.cast.windupStart;
- const windupStart=rangedWindup?combat.cast.windupStart:combat.autoWindupStart;
- const windupEnd=rangedWindup?combat.cast.until:combat.autoWindupEnd;
- const windupDuration=rangedWindup?combat.cast.windupDuration:0.5;
+ const windupStart=combat.autoWindupStart;
+ const windupEnd=combat.autoWindupEnd;
+ const windupDuration=0.5;
  const winding=windupStart!==null;
  $('windupBar').style.width=(winding?Math.max(0,Math.min(100,100*(combat.time-windupStart)/windupDuration)):0)+'%';
  $('windupBarText').textContent=winding?Math.max(0,windupEnd-combat.time).toFixed(1)+'s':'WAITING';
