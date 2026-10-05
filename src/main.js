@@ -11,6 +11,7 @@ import {createNameplate,targetDebuffs,auraTime} from './nameplate.js';
 import {layoutCombatText} from './combat-text-layout.js';
 import {BINDING_GROUPS, DEFAULT_BINDINGS, eventChord, mouseChord, wheelChord, bindingLabel, actionForChord, held, rebind, loadBindings, saveBindings} from './bindings.js';
 import {PET_FAMILIES, RECORDS, changeTalent, validTalents, describe} from './catalog.js';
+import {createCustomBar} from './custom-bar.js';
 import './style.css';
 
 const app=document.querySelector('#app');
@@ -158,16 +159,19 @@ let lastX=0,lastY=0,autorun=false,toastUntil=0;
 function showToast(text){$('toast').textContent=text;$('toast').classList.add('visible');toastUntil=combat.time+1.7}
 function fire(id){const before=combat.events[0];if(!combat.castSpell(id,player)&&combat.events[0]!==before)showToast(combat.events[0].message)}
 const buttons=new Map();
-let actionPage='Core';
-for(const name of [...new Set(ACTIONS.map(a=>a.category))]){
+let actionPage='Custom';
+for(const name of ['Custom',...new Set(ACTIONS.map(a=>a.category))]){
  const tab=document.createElement('button');tab.textContent=name;tab.onclick=()=>selectPage(name);$('spellTabs').appendChild(tab);
 }
-function selectPage(name){actionPage=name;for(const a of ACTIONS)buttons.get(a.id).hidden=a.category!==name;for(const b of $('spellTabs').children)b.classList.toggle('active',b.textContent===name)}
+function selectPage(name){actionPage=name;customBar.host.hidden=name!=='Custom';$('actionBar').hidden=name==='Custom';for(const a of ACTIONS)buttons.get(a.id).hidden=a.category!==name;for(const b of $('spellTabs').children)b.classList.toggle('active',b.textContent===name)}
 
-for(const action of ACTIONS){const b=document.createElement('button');b.className='action';b.style.setProperty('--tint',action.tint);
+function createActionButton(action){const b=document.createElement('button');b.className='action';b.style.setProperty('--tint',action.tint);
  const glyph=action.id==='MultiShot'?'<svg class="multi-shot-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 38 26 17m-8 0h8v8M12 42 33 21m-8 0h8v8M19 46 40 25m-8 0h8v8"/></svg>':action.id==='RapidFire'?'✷':action.id.includes('Sting')?'♜':action.id.includes('Aspect')?'◇':action.id==='HuntersMark'?'◎':'➶';
- b.innerHTML=`<span class="action-key">${bindingLabel(bindings['spell:'+action.id])}</span><span class="action-glyph">${glyph}</span><span class="action-name">${SPELLS[action.id]?.name||action.id}</span><span class="action-sweep"></span><span class="action-cooldown"></span>`;b.dataset.spell=action.id;b.dataset.description=describe(SPELLS[action.id]);b.title=b.dataset.description;b.onclick=()=>fire(action.id);$('actionBar').appendChild(b);buttons.set(action.id,b)}
-selectPage('Core');
+ b.innerHTML=`<span class="action-key">${bindingLabel(bindings['spell:'+action.id])}</span><span class="action-glyph">${glyph}</span><span class="action-name">${SPELLS[action.id]?.name||action.id}</span><span class="action-sweep"></span><span class="action-cooldown"></span>`;b.dataset.spell=action.id;b.dataset.description=describe(SPELLS[action.id]);b.title=b.dataset.description;b.onclick=()=>fire(action.id);return b}
+for(const action of ACTIONS){const b=createActionButton(action);$('actionBar').appendChild(b);buttons.set(action.id,b)}
+const customBar=createCustomBar({app,storage:window.localStorage,createButton:createActionButton,setModal,getBindings:()=>bindings,getTalents:()=>combat.talents,toggleAuto:()=>$('autoBtn').click()});
+const editBar=document.createElement('button');editBar.id='editBarBtn';editBar.textContent='Edit bar';editBar.onclick=()=>{selectPage('Custom');customBar.open()};$('spellTabs').append(editBar);
+selectPage('Custom');
 function setModal(id,open){
  $(id).classList.toggle('hidden',!open);
  if(open){jumpRequested=false;gestures.clear();keys.clear();pressed.clear();mouse.left=false;mouse.right=false;autorun=false;document.exitPointerLock?.()}
@@ -213,6 +217,7 @@ function renderBindings(){
  }
 }
 function refreshBindingLabels(){
+ customBar.refreshBindings();
  for(const action of ACTIONS)buttons.get(action.id).querySelector('.action-key').textContent=bindingLabel(bindings['spell:'+action.id]);
  $('guideKeys').textContent=['RaptorStrike','MongooseBite','StriderKick','SerpentSting','ArcaneShot','MultiShot'].map(id=>(SPELLS[id]?.name||id)+': '+bindingLabel(bindings['spell:'+id])).join(' · ');
  $('autoKey').textContent=bindingLabel(bindings.toggleAuto);
@@ -257,7 +262,7 @@ function command(id){
  if(id==='loadSvWeave'){$('svPreset').click();return}
  if(id==='controls'){$('helpBtn').click();return}
  if(id==='keybinds'){$('keybindBtn').click();return}
- if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);setModal('howToPanel',false);return}
+ if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);setModal('howToPanel',false);setModal('barEditor',false);return}
  if(id==='resetEncounter'){$('resetBtn').click();return}
  if(id==='clearTalents'){$('clearTalents').click();return}
  if(id==='zoomIn')rig.zoom(1);
@@ -324,7 +329,7 @@ window.addEventListener('keydown',e=>{
  if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;
  const chord=eventChord(e),id=actionForChord(bindings,chord);
  if(id||['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
- const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel'].some(name=>!$(name).classList.contains('hidden'));
+ const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor'].some(name=>!$(name).classList.contains('hidden'));
  if(panelOpen){
   if(id==='closePanel'||e.code==='Escape')command('closePanel');
   else if(id==='clearTalents'&&!$('talentPanel').classList.contains('hidden'))command(id);
@@ -347,7 +352,7 @@ document.addEventListener('wheel',e=>{
 },{capture:true,passive:false});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('mousedown',e=>{
- if(['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel'].some(name=>!$(name).classList.contains('hidden')))return;
+ if(['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor'].some(name=>!$(name).classList.contains('hidden')))return;
  if(e.button===0)gestures.set(e.button,new PressGesture(performance.now()/1000,e.clientX,e.clientY));
  pressed.add('Mouse'+e.button);updateMouseState();
  const id=actionForChord(bindings,mouseChord(e));
@@ -434,7 +439,7 @@ function updateCombatText(){
 let last=performance.now();
 function frame(now){
  const dt=Math.min(.05,(now-last)/1000);last=now;
- const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel'].some(name=>!$(name).classList.contains('hidden'));
+ const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor'].some(name=>!$(name).classList.contains('hidden'));
  keys.clear();
  for(const [id,key] of [['forward','w'],['backward','s'],['turnLeft','a'],['turnRight','d'],['strafeLeft','q'],['strafeRight','e']])if(held(bindings,id,pressed))keys.add(key);
  const axes=blocked||combat.health<=0?{forward:0,side:0,turn:0}:movementAxes(keys,mouse,autorun);
@@ -485,6 +490,7 @@ function updateHud(){
  $('timeText').textContent=Math.floor(combat.time/60)+':'+String(Math.floor(combat.time%60)).padStart(2,'0');
  $('damageText').textContent=Math.floor(combat.damage).toLocaleString();$('dpsText').textContent=Math.floor(combat.damage/Math.max(combat.time,1)).toLocaleString();
  $('aspectText').textContent=SPELLS[combat.aspect]?.name||'Aspect of the Hawk';$('rapidText').textContent=combat.auras.rapidFire?'Rapid Fire '+Math.ceil(combat.auras.rapidFire-combat.time)+'s':'';
+ customBar.updateAuto(combat.autoShot);
  $('autoText').textContent=!combat.autoShot?'OFF':range<combat.minRangeFor('AutoShot')?'ON · WAITING FOR RANGE':'ON';
  $('autoBtnLabel').textContent=combat.autoShot?'Stop Auto Shot':'Start Auto Shot';
  $('autoTimerToggle').setAttribute('aria-pressed',String(combat.autoShot));
@@ -572,7 +578,7 @@ function updateHud(){
  const meleeDuration=Math.max(0.01,combat.nextMelee-combat.previousMelee);
  $('meleeBar').style.width=Math.max(0,Math.min(100,100*(combat.time-combat.previousMelee)/meleeDuration))+'%';
  $('meleeBarText').textContent=combat.time>=combat.nextMelee?'READY':(combat.nextMelee-combat.time).toFixed(1)+'s'; for(const action of ACTIONS){
-  const b=buttons.get(action.id);
+  for(const b of [buttons.get(action.id),...customBar.buttonsFor(action.id)]){
   const cd=Math.max(0,(combat.cooldowns[action.id]||0)-combat.time);
   const gcd=!SPELLS[action.id].gcdMs?0:Math.max(0,combat.gcdUntil-combat.time);
   const ownCooldown=cd>gcd;
@@ -592,6 +598,7 @@ function updateHud(){
   b.title=b.dataset.description+'\n\n'+status;
   b.setAttribute('aria-label',SPELLS[action.id].name+' · '+status);
   b.querySelector('.action-cooldown').textContent=cd>0?cd>=10?Math.ceil(cd)+'s':cd.toFixed(1):'';
+ }
  }
  $('logRows').innerHTML=combat.events.map(e=>`<div class="log-row ${e.kind}"><time>${e.time.toFixed(1)}</time><span>${e.message}</span></div>`).join('');
  if(combat.time>toastUntil)$('toast').classList.remove('visible');

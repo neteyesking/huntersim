@@ -157,3 +157,9 @@ The 3.0 s Auto Shot regression checks use an explicit weapon speed: 2.5 s until 
 src/hunter-avatar.js owns the original model, limb posing, bowstring, carried weapons and sword trail. main.js feeds it combat windup/cast progress and shoot/melee events, and launches visual arrows. Keep Auto Shot release and melee contact tied to combat events; do not infer attacks from animation completion. Movement and collision use the existing player state. Model height stays 2.0277777 yd.
 
 Run tools/avatar-browser-check.mjs with BROWSER_DEBUG_URL, a development GAME_URL and a screenshot output directory. It observes bow draw, released projectiles, queued Raptor Strike, melee readiness and the return to ranged through real movement inputs. avatarSnapshot() returns copied pose and geometry values for inspection. Import the page's actual main-module script URL when inspecting a Vite session, including its update query, to avoid creating a second game instance.
+
+## Custom center bar
+
+The Custom tab is the default action bar, with 12 ability slots. Select Edit bar (or right-click a slot), select a slot, then search or filter the ability list to assign it. Drag slots to swap them, or use the left/right buttons. Clear slot leaves an empty slot; click it during play to assign an ability. Restore default bar restores the starter layout. Changes save automatically in this browser and survive encounter resets and reloads.
+
+Every Hunter ability, including Auto Shot, can be placed on the bar. Talent abilities can be placed before learning them and remain unavailable until learned. Custom slots show the same range, mana, proc, queued attack and cooldown states as the category pages. Keybinds belong to abilities and stay unchanged when slots move; use Keybinds to change them. Category tabs remain available for the full spellbook.

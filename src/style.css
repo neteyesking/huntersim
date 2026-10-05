@@ -166,3 +166,36 @@
 #autoTrackToggle{display:block;width:100%;padding:0;overflow:hidden;cursor:pointer;pointer-events:auto;text-align:left}
 #autoTrackToggle:hover,#autoTrackToggle:focus-visible{border-color:#fff1b0;outline:1px solid #fff1b0}
 #autoTrackToggle[aria-pressed="false"]{border-color:#baa47e;background:#29251e}
+
+/* Compact center action bar and its ability picker. */
+#customActionBar{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px;width:min(744px,calc(100vw - 24px));padding:5px;background:#090f13e8;border:1px solid #626354;box-shadow:0 5px 20px #0008}
+#customActionBar .action{width:100%;height:58px;border-radius:1px;box-shadow:inset 0 0 12px #0007;min-width:0}
+#customActionBar .action-glyph{font-size:26px;margin-top:4px}
+#customActionBar .multi-shot-icon{width:29px;height:29px}
+#customActionBar .action-name{font-size:8px;padding:0 3px}
+#customActionBar .action-key{font-size:9px;top:2px;right:4px}
+#customActionBar .empty-slot{border:1px dashed #46554f;background:#101b1db0;color:#60776b}
+#customActionBar .empty-slot>span:first-child{font-size:22px}
+#customActionBar .action[data-spell=AutoShot].queued::after{content:'ON';font-size:8px;top:20px}
+#spellTabs #editBarBtn{border-color:#a68b57;color:#f1d492;margin-left:8px}
+.bar-editor-card{width:min(760px,94vw);max-height:90vh;display:flex;flex-direction:column;gap:12px;padding:22px;background:#142528;border:1px solid #7e8971;box-shadow:0 25px 80px #000b;overflow:auto}
+.bar-editor-card h2{font:27px Georgia,serif;margin:7px 0 0}
+.bar-editor-card p{font-size:12px;color:#b0c1b8;line-height:1.5;margin:0}
+#barSlotGrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}
+.bar-slot{height:58px;min-width:0;position:relative;border:1px solid #49645a;background:#203937;padding:17px 5px 5px;font-size:11px;cursor:grab}
+.bar-slot small{position:absolute;left:6px;top:4px;color:#c3ad7c;font-size:9px}
+.bar-slot.selected{border-color:#eac784;background:#45442c;box-shadow:inset 0 0 0 1px #eac784}
+.bar-slot:focus-visible,.bar-choice:focus-visible{outline:2px solid #f1d492;outline-offset:2px}
+.bar-editor-tools,.bar-search-row,.bar-editor-footer{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.bar-editor-tools strong{font-size:12px;color:#eed3a1}
+.bar-search-row input,.bar-search-row select{min-width:0;padding:10px;border:1px solid #526c60;background:#0c1a1e;color:#eee;font:12px inherit}
+.bar-search-row input{flex:1}
+#barAbilityList{min-height:130px;max-height:28vh;overflow:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start;gap:5px;padding:3px;scrollbar-width:thin}
+.bar-choice{text-align:left;border:1px solid #3b534a;background:#1b302f;padding:10px;min-height:57px}
+.bar-choice:hover{background:#2c4640;border-color:#c9a66e}
+.bar-choice strong{display:block;font-size:11px;font-weight:500}
+.bar-choice span{display:block;font-size:9px;color:#9cad9f;margin-top:5px}
+.bar-editor-footer{border-top:1px solid #3b5147;padding-top:12px}
+#barSaveStatus{font-size:10px;color:#a6b5a6}
+.bar-editor-tools button:disabled{opacity:.4;cursor:default}
+@media(max-width:750px){#customActionBar{grid-template-columns:repeat(6,minmax(0,1fr));width:min(420px,96vw)}#customActionBar .action{height:48px}#customActionBar .action-glyph{font-size:22px;margin-top:0}#customActionBar .multi-shot-icon{height:24px}.bar-editor-card{padding:14px}#barAbilityList{grid-template-columns:repeat(2,minmax(0,1fr))}.bar-slot{font-size:9px}.bar-editor-footer{flex-wrap:wrap}.bar-editor-footer .inline{font-size:10px}}
