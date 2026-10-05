@@ -38,7 +38,7 @@ src/movement.js owns the equations, follow state, click classification and body 
 
 The arena is an infinite flat y=0 movement surface with a finite visual ground mesh. Decorative perimeter posts and plinths remain noncolliding. There are no slopes, steps, terrain seams, walls, ceilings, liquids, moving platforms, mounts, knockback, feather fall or fall damage. These need a world collision model with capsule, slide and step handling. Camera floor clipping is exact for the plane; arbitrary geometry sweeps are not implemented.
 
-The fixed human body uses the requested 2.0277777 yd height and 0.30555 yd radius. Body turns, leg swings and upper-body aim use original procedural geometry. Remote pet views retain the simplified human camera framing. Terrain tilt and head bob are absent. Camera follow uses the default Smart style; settings for other styles and server-driven tracking/fear are absent. The browser retains a 50 ms frame-delta cap. Pointer lock is subject to browser focus and permission rules.
+The fixed human body uses the requested 2.0277777 yd height and 0.30555 yd radius. Body turns, articulated leg swings and upper-body aim use original procedural geometry from src/hunter-avatar.js. Visual limb poses read movement state without changing it. Remote pet views retain the simplified human camera framing. Terrain tilt and head bob are absent. Camera follow uses the default Smart style; settings for other styles and server-driven tracking/fear are absent. The browser retains a 50 ms frame-delta cap. Pointer lock is subject to browser focus and permission rules.
 
 ## Checks and browser debugging
 

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import {Combat, SPELLS, TREES, ACTIONS} from './combat.js';
 import {movementAxes, stepMovement, turnDelta, CameraRig, cameraCommand, bodyHeading, angleDifference, PressGesture} from './movement.js';
 import {createRangeMarkers} from './range-markers.js';
+import {createHunterAvatar} from './hunter-avatar.js';
 import {HUMAN_HEIGHT, HUMAN_RADIUS, combatReach} from './scale.js';
 import {SV_WEAVE,loadTalentBuild,isSurvivalWeave} from './presets.js';
 import {WEAVE_GUIDE} from './weave-guide.js';
@@ -115,63 +116,43 @@ function pickTarget(clientX,clientY){
  targetRaycaster.setFromCamera(targetPointer,camera);
  return targetRaycaster.intersectObject(target,true).length>0;
 }
-const avatar=new THREE.Group();scene.add(avatar);
-const upperBody=new THREE.Group();avatar.add(upperBody);
-const avatarScale=HUMAN_HEIGHT/2.61;avatar.scale.setScalar(avatarScale);
-part(upperBody,new THREE.CylinderGeometry(.38,.42,1.05,8),cloth,0,1.25,0);
-part(upperBody,new THREE.SphereGeometry(.28,10,8),mat('#c79a76'),0,2.05,0);
-part(upperBody,new THREE.ConeGeometry(.35,.46,8),leather,0,2.38,0);
-const leftArm=new THREE.Group();leftArm.position.set(-.55,1.75,0);upperBody.add(leftArm);
-const rightArm=new THREE.Group();rightArm.position.set(.55,1.75,0);upperBody.add(rightArm);
-part(leftArm,new THREE.BoxGeometry(.24,.86,.26),leather,0,-.35,0);
-part(rightArm,new THREE.BoxGeometry(.24,.86,.26),leather,0,-.35,0);
-const legL=part(avatar,new THREE.BoxGeometry(.27,.87,.29),leather,-.2,.48,0);
-const legR=part(avatar,new THREE.BoxGeometry(.27,.87,.29),leather,.2,.48,0);
-const bow=new THREE.Group();leftArm.add(bow);bow.position.set(0,-.7,.1);
-const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,-.8,0),new THREE.Vector3(.25,-.4,0),new THREE.Vector3(.32,0,0),new THREE.Vector3(.25,.4,0),new THREE.Vector3(0,.8,0)]);
-part(bow,new THREE.TubeGeometry(curve,18,.045,6),wood,0,0,0);
-part(bow,new THREE.CylinderGeometry(.012,.012,1.6,4),metal,0,0,0);
-const sword=new THREE.Group();rightArm.add(sword);sword.position.set(0,-.7,0);sword.visible=false;
-part(sword,new THREE.BoxGeometry(.11,.85,.045),metal,0,-.52,0);
-part(sword,new THREE.ConeGeometry(.075,.22,4),metal,0,-1.05,0).rotation.z=Math.PI;
-part(sword,new THREE.BoxGeometry(.38,.07,.11),rim,0,-.08,0);
-part(sword,new THREE.BoxGeometry(.07,.25,.07),leather,0,.08,0);
-const attackMotion={type:null,start:0};
-function animateAttack(){
+const hunterVisual=createHunterAvatar();
+const {group:avatar,upperBody,legL,legR}=hunterVisual;scene.add(avatar);
+const attackMotion={type:null,start:0,id:null};
+function animateAttack(dt,moving){
  const age=combat.time-attackMotion.start;
  if(attackMotion.type==='shoot'&&age>.28)attackMotion.type=null;
  if(attackMotion.type==='melee'&&age>.48)attackMotion.type=null;
  const rangedCast=combat.cast&&['AimedShot','MultiShot','SniperShot'].includes(combat.cast.id);
- const bowWindup=combat.autoWindupStart!==null||(rangedCast&&combat.time>=combat.cast.windupStart);
- const aiming=combat.autoWindupStart!==null||rangedCast;
- const recoil=attackMotion.type==='shoot'?Math.sin(Math.PI*Math.max(0,age)/.28):0;
- const slash=attackMotion.type==='melee'?Math.sin(Math.PI*Math.max(0,age)/.48):0;
- leftArm.rotation.x=-(aiming?1.1:0)-recoil*.7;
- rightArm.rotation.x=-(bowWindup?1.25:aiming?.7:0)-recoil*.9-slash*1.8;
- rightArm.rotation.z=-slash*.7;
- bow.rotation.x=-leftArm.rotation.x;
- const meleeStance=combat.distance(player)<=combat.rangeFor('RaptorStrike');
- bow.visible=!meleeStance&&attackMotion.type!=='melee';
- sword.visible=meleeStance||attackMotion.type==='melee';
+ const autoDraw=combat.autoWindupStart!==null?Math.min(1,(combat.time-combat.autoWindupStart)/.5):0;
+ const castDraw=rangedCast?Math.min(1,(combat.time-combat.cast.start)/combat.cast.duration):0;
+ hunterVisual.update({time:combat.time,dt,moving,airborne:player.height>0,melee:combat.distance(player)<=combat.rangeFor('RaptorStrike'),aiming:combat.autoWindupStart!==null||!!rangedCast,draw:Math.max(autoDraw,castDraw),releaseAge:attackMotion.type==='shoot'?age:-1,meleeAge:attackMotion.type==='melee'?age:-1,ability:attackMotion.id});
 }
-const shadow=new THREE.Mesh(new THREE.CircleGeometry(.85,32),new THREE.MeshBasicMaterial({color:0x071713,transparent:true,opacity:.35}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.04;avatar.add(shadow);
 const capsuleGeometry=new THREE.CapsuleGeometry(HUMAN_RADIUS,HUMAN_HEIGHT-2*HUMAN_RADIUS,4,12);
 const capsuleMaterial=new THREE.MeshBasicMaterial({color:0x6ed5d1,wireframe:true,transparent:true,opacity:.45,depthTest:false});
 const targetHitbox=new THREE.Mesh(capsuleGeometry,capsuleMaterial);targetHitbox.position.y=HUMAN_HEIGHT/2;targetHitbox.visible=false;target.add(targetHitbox);
 const playerHitbox=new THREE.Mesh(capsuleGeometry,capsuleMaterial);playerHitbox.visible=false;scene.add(playerHitbox);
 const projectiles=[];
+function disposeProjectile(mesh){mesh.traverse(node=>{if(node.isMesh){node.geometry.dispose();node.material.dispose()}})}
 function spawnProjectile(id){if(!['AutoShot','ArcaneShot','AimedShot','MultiShot','SerpentSting','ScorpidSting','SniperShot'].includes(id))return;
- const mesh=new THREE.Mesh(new THREE.SphereGeometry(id==='ArcaneShot'?.14:.08,8,8),new THREE.MeshBasicMaterial({color:id==='ArcaneShot'?0x74c9ff:id==='SerpentSting'?0x88dd83:0xffd189}));
- mesh.position.set(player.x,player.height+1.5,player.z);scene.add(mesh);
- const duration=Math.max(.15,Math.hypot(player.x,player.z)/(SPELLS[id]?.speed||40));
- projectiles.push({mesh,from:mesh.position.clone(),to:new THREE.Vector3(0,1.3,0),start:combat.time,duration});
+ const count=id==='MultiShot'?3:1;
+ for(let i=0;i<count;i++){
+  const mesh=new THREE.Group(),tint=id==='ArcaneShot'?0x74c9ff:id==='SerpentSting'?0x88dd83:0xded2a6;
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.60,5),new THREE.MeshBasicMaterial({color:tint}));shaft.rotation.x=Math.PI/2;mesh.add(shaft);
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.035,.10,4),new THREE.MeshBasicMaterial({color:tint}));tip.rotation.x=Math.PI/2;tip.position.z=.35;mesh.add(tip);
+  const feather=new THREE.Mesh(new THREE.BoxGeometry(.06,.008,.10),new THREE.MeshBasicMaterial({color:0x699b87}));feather.position.z=-.25;mesh.add(feather);
+  mesh.position.copy(hunterVisual.muzzlePosition());mesh.position.x+=(i-(count-1)/2)*.07;scene.add(mesh);
+  const to=new THREE.Vector3((i-(count-1)/2)*.22,1.3,0);mesh.lookAt(to);
+  const duration=Math.max(.15,Math.hypot(player.x,player.z)/(SPELLS[id]?.speed||40));
+  projectiles.push({mesh,from:mesh.position.clone(),to,start:combat.time,duration});
+ }
 }
 
 let lastHudRange=18;
 const rig=new CameraRig(player.yaw);
 const mouse={left:false,right:false};
 const gestures=new Map();
-const avatarMaterials=[];avatar.traverse(object=>{if(object.isMesh){object.material=object.material.clone();avatarMaterials.push({material:object.material,opacity:object.material.opacity});}});
+const avatarMaterials=[];avatar.traverse(object=>{if(object.isMesh||object.isLine){object.material=object.material.clone();avatarMaterials.push({material:object.material,opacity:object.material.opacity});}});
 let lastX=0,lastY=0,autorun=false,toastUntil=0;
 function showToast(text){$('toast').textContent=text;$('toast').classList.add('visible');toastUntil=combat.time+1.7}
 function fire(id){const before=combat.events[0];if(!combat.castSpell(id,player)&&combat.events[0]!==before)showToast(combat.events[0].message)}
@@ -297,7 +278,7 @@ $('svPreset').onclick=$('guidePreset').onclick=()=>{
 };
 $('helpBtn').onclick=()=>setModal('helpPanel',true);
 $('helpClose').onclick=$('helpPlay').onclick=()=>setModal('helpPanel',false);
-$('resetBtn').onclick=()=>{combat.reset();player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.type=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose()}projectiles.length=0;showToast('Encounter reset')};
+$('resetBtn').onclick=()=>{combat.reset();player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.type=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
 $('autoTimerToggle').onclick=$('autoTrackToggle').onclick=()=>$('autoBtn').click();
 $('autoBtn').onclick=()=>{combat.autoShot=!combat.autoShot;showToast('Auto Shot '+(combat.autoShot?'on':'off'))};
 $('hitboxBtn').onclick=()=>{const visible=!targetHitbox.visible;targetHitbox.visible=visible;playerHitbox.visible=visible;$('hitboxBtn').textContent=visible?'Hide hitboxes':'Show hitboxes'};
@@ -476,13 +457,12 @@ function frame(now){
  for(const {material,opacity} of avatarMaterials){material.opacity=opacity*(remote||combat.auras.eagleEye?1:alpha);material.transparent=material.opacity<1;material.depthWrite=material.opacity===1;}
  camera.position.set(eye.x,eye.y,eye.z);camera.lookAt(look.x,look.y,look.z);camera.updateMatrixWorld();
  if(!blocked)combat.tick(dt,player,!remote&&(moving||player.height>0));
- for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i],t=(combat.time-p.start)/p.duration;p.mesh.position.lerpVectors(p.from,p.to,Math.min(1,t));if(t>=1){scene.remove(p.mesh);p.mesh.geometry.dispose();p.mesh.material.dispose();projectiles.splice(i,1)}}
- for(const event of combat.visualEvents.splice(0)){
-  attackMotion.type=event.type;attackMotion.start=combat.time;
-  if(event.type==='shoot')spawnProjectile(event.id);
- }
+ for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i],t=(combat.time-p.start)/p.duration;p.mesh.position.lerpVectors(p.from,p.to,Math.min(1,t));if(t>=1){scene.remove(p.mesh);disposeProjectile(p.mesh);projectiles.splice(i,1)}}
+ const attackEvents=combat.visualEvents.splice(0);
+ for(const event of attackEvents){attackMotion.type=event.type;attackMotion.start=combat.time;attackMotion.id=event.id}
  updateCompanions();
- animateAttack();
+ animateAttack(dt,moving&&!remote);
+ for(const event of attackEvents)if(event.type==='shoot')spawnProjectile(event.id);
  updateHud();
  updateCombatText();
  renderer.render(scene,camera);
@@ -664,3 +644,5 @@ export function movementSnapshot() {
 export function weavingSnapshot(){return {time:combat.time,rangedMin:combat.minRangeFor('AutoShot'),timer:combat.autoTimer(),stats:combat.weaving.snapshot(combat.time,combat.expectedAutoShotAt)};}
 
 export function rangeSnapshot(){return {selectionRadius:selectionRing.geometry.parameters.outerRadius*target.scale.x,modelFootprint:{width:targetModelSize.x,depth:targetModelSize.z,scale:target.scale.x},selectionVisible:selectionRing.visible&&target.visible,bodyRadius:HUMAN_RADIUS*targetHitbox.scale.x,clickRadius:.65*targetClickArea.scale.x,markers:rangeMarkers.snapshot(),meleeMax:combat.rangeFor('RaptorStrike'),rangedMin:combat.minRangeFor('AutoShot'),rangedMax:combat.rangeFor('AutoShot')};}
+
+export function avatarSnapshot(){return {...hunterVisual.snapshot(),projectiles:projectiles.length};}
