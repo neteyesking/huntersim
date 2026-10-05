@@ -12,7 +12,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const until=async expression=>{for(let i=0;i<100;i++){const value=await evaluate(expression);if(value)return value;await wait(100)}throw Error('Timed out: '+expression)};
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 const snapshot=()=>evaluate("import('/src/main.js').then(m=>m.rangeSnapshot())");
-const setRadius=async value=>{await evaluate(`(()=>{const input=document.getElementById('targetReachOption');input.value=${value};input.dispatchEvent(new Event('change'))})()`);await until("import('/src/main.js').then(m=>Math.abs(m.rangeSnapshot().reachRingRadius-"+value+")<1e-8)")};
+const setRadius=async value=>{await evaluate(`(()=>{const input=document.getElementById('targetReachOption');input.value=${value};input.dispatchEvent(new Event('change'))})()`);await until("import('/src/main.js').then(m=>Math.abs(m.rangeSnapshot().rangedMin-9.5-"+value+")<1e-8)")};
 try{
  await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:game});
  await until("!!document.getElementById('targetReachOption')");
@@ -20,7 +20,7 @@ try{
  const results=[];
  for(const radius of [1.5,5,1,20]){
   await setRadius(radius);const s=await snapshot();
-  close(s.reachRingRadius,radius);close(s.bodyRadius,.30555);close(s.clickRadius,.65);
+  close(s.selectionRadius,Math.sqrt(.5*Math.hypot(s.modelFootprint.width,s.modelFootprint.depth))*s.modelFootprint.scale);assert.equal(s.selectionVisible,true);close(s.bodyRadius,.30555);close(s.clickRadius,.65);
   close(s.meleeMax,Math.max(5,1.5+radius+4/3));close(s.rangedMin,8+1.5+radius);
   close(s.rangedMax,35+1.5+radius);close(s.markers.melee,s.meleeMax);close(s.markers.rangedMin,s.rangedMin);close(s.markers.rangedMax,s.rangedMax);
   close(s.markers.deadZone.inner,s.meleeMax);close(s.markers.deadZone.outer,s.rangedMin);
