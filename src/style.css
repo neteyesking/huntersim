@@ -199,3 +199,23 @@
 #barSaveStatus{font-size:10px;color:#a6b5a6}
 .bar-editor-tools button:disabled{opacity:.4;cursor:default}
 @media(max-width:750px){#customActionBar{grid-template-columns:repeat(6,minmax(0,1fr));width:min(420px,96vw)}#customActionBar .action{height:48px}#customActionBar .action-glyph{font-size:22px;margin-top:0}#customActionBar .multi-shot-icon{height:24px}.bar-editor-card{padding:14px}#barAbilityList{grid-template-columns:repeat(2,minmax(0,1fr))}.bar-slot{font-size:9px}.bar-editor-footer{flex-wrap:wrap}.bar-editor-footer .inline{font-size:10px}}
+
+/* Aspect names remain readable even in compact custom slots. */
+.action.aspect-action .action-glyph{display:none}
+.action.aspect-action .action-name,#customActionBar .action.aspect-action .action-name{position:absolute;inset:13px 3px 4px;display:grid;place-items:center;white-space:normal;overflow:visible;text-overflow:clip;font-size:10px;line-height:1.15;padding:0;overflow-wrap:normal}
+.action.active-aspect,#customActionBar .action.active-aspect{border-color:#8de1a8;background:linear-gradient(145deg,#294b35,#132a23);box-shadow:inset 0 0 0 1px #7bca9244}
+.action.active-aspect .action-name{color:#c6f6cd!important}
+.action.active-aspect::after{content:'●';position:absolute;top:1px;left:4px;font-size:10px;color:#a1efb4;z-index:5}
+.buff-bar{order:-2;position:sticky;top:0;z-index:1;flex-shrink:0;padding:11px;background:#0c1b20f5;border:1px solid #657359;border-radius:5px;box-shadow:0 8px 22px #0004}
+.buff-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.buff-heading small{font-size:10px;color:#a6b4a1}
+.buff-list{display:grid;grid-template-columns:1fr;gap:5px;max-height:240px;overflow-y:auto;scrollbar-width:thin}
+.buff-tile{display:flex;gap:7px;align-items:center;min-width:0;border:1px solid #385849;background:#193128;padding:6px}
+.buff-symbol{display:grid;place-items:center;flex:0 0 22px;height:25px;color:#b6dfb1;font-size:21px;background:#0d211e}
+.buff-name{display:block;color:#dbead9;font-size:11px;font-weight:500;line-height:1.2;overflow-wrap:anywhere}
+.buff-time{display:block;color:#a8c4ac;font-size:9px;margin-top:4px;font-variant-numeric:tabular-nums}
+.buff-tile[data-kind=proc]{border-color:#b1964d;background:#3b3420}
+.buff-tile[data-kind=proc] .buff-symbol{color:#ffe08d;background:#292619}
+.buff-tile[data-kind=proc] .buff-name{color:#ffe8ad}
+.buff-tile.expiring .buff-time{color:#ffbd87}
+@media(max-width:650px){.buff-bar{padding:7px}.buff-list{max-height:165px}.buff-name{font-size:10px}.buff-tile{padding:5px;gap:4px}.buff-symbol{flex-basis:18px}}

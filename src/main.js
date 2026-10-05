@@ -11,6 +11,7 @@ import {createNameplate,targetDebuffs,auraTime} from './nameplate.js';
 import {layoutCombatText} from './combat-text-layout.js';
 import {BINDING_GROUPS, DEFAULT_BINDINGS, eventChord, mouseChord, wheelChord, bindingLabel, actionForChord, held, rebind, loadBindings, saveBindings} from './bindings.js';
 import {PET_FAMILIES, RECORDS, changeTalent, validTalents, describe} from './catalog.js';
+import {createBuffBar} from './player-buffs.js';
 import {createCustomBar} from './custom-bar.js';
 import './style.css';
 
@@ -20,7 +21,7 @@ app.innerHTML=`
 <div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="trainingBtn">Training</button><button id="howToBtn">How to</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
 <div class="target-panel" id="targetPanel"><div class="eyebrow">TARGET · TRAINING DUMMY</div><div class="target-title"><strong>Clockwork Sentinel</strong><span id="targetPct">100%</span></div><div class="meter health"><i id="healthFill"></i></div><div class="target-stats"><span id="targetHp">50,000 / 50,000</span><span id="rangeText">18 yd</span></div><div id="targetAuras"></div><div id="rangeLegend" class="range-legend"></div></div>
 <div class="player-panel"><div class="eyebrow">HUNTER · LEVEL 60</div><div class="player-title"><strong>Wayfinder</strong><span id="manaText">3,000 / 3,000</span></div><div class="meter mana"><i id="manaFill"></i></div><div class="player-meta"><span id="aspectText">Aspect of the Hawk</span><span id="rapidText"></span></div><div id="hunterVitals" class="vitals"></div><div id="petVitals" class="vitals"></div><div class="pet-orders"><button id="petAttack">Pet attack</button><button id="petFollow">Follow</button><button id="petStay">Stay</button></div><div class="scale-note">1 grid square = 1 yd · human body 2.03 yd tall · target combat reach adjustable in Training</div></div>
-<div class="telemetry-column"><div class="status-card"><div class="eyebrow">ENCOUNTER</div><div class="statline"><span>Duration</span><strong id="timeText">0:00</strong></div><div class="statline"><span>Damage</span><strong id="damageText">0</strong></div><div class="statline"><span>DPS</span><strong id="dpsText">0</strong></div><div class="statline"><span>Position</span><strong id="positionText">18 yd</strong></div><div class="statline"><span>Auto Shot</span><strong id="autoText">ON</strong></div><button class="inline" id="autoBtn"><span id="autoBtnLabel">Stop Auto Shot</span> <kbd id="autoKey">T</kbd></button><button class="inline" id="hitboxBtn">Show hitboxes</button></div>
+<div class="telemetry-column"><section id="buffBar" class="buff-bar" aria-label="Active buffs"></section><div class="status-card"><div class="eyebrow">ENCOUNTER</div><div class="statline"><span>Duration</span><strong id="timeText">0:00</strong></div><div class="statline"><span>Damage</span><strong id="damageText">0</strong></div><div class="statline"><span>DPS</span><strong id="dpsText">0</strong></div><div class="statline"><span>Position</span><strong id="positionText">18 yd</strong></div><div class="statline"><span>Auto Shot</span><strong id="autoText">ON</strong></div><button class="inline" id="autoBtn"><span id="autoBtnLabel">Stop Auto Shot</span> <kbd id="autoKey">T</kbd></button><button class="inline" id="hitboxBtn">Show hitboxes</button></div>
 <div class="combat-log"><div class="telemetry-tabs"><button id="weavingTab" class="selected">Weaving</button><button id="combatLogTab">Combat log</button></div><div id="weavingStats">
 <div class="statline" title="How overdue the next Auto Shot is against the previous shot's expected release"><span>Live ranged delay</span><strong id="liveRangedDelay">+0.00s</strong></div>
 <div class="statline" title="Delay on the last completed shot interval / average across completed intervals"><span>Last / avg delay</span><strong id="lastAverageDelay">— / —</strong></div>
@@ -39,6 +40,7 @@ app.innerHTML=`
 
 const $=id=>document.getElementById(id);
 const combat=new Combat();
+const drawBuffBar=createBuffBar($('buffBar'));
 for(const [tab,body,otherTab,otherBody] of [['weavingTab','weavingStats','combatLogTab','combatLogBody'],['combatLogTab','combatLogBody','weavingTab','weavingStats']])$(tab).onclick=()=>{$(body).classList.remove('hidden');$(otherBody).classList.add('hidden');$(tab).classList.add('selected');$(otherTab).classList.remove('selected')};
 combat.talents=loadTalentBuild(window.localStorage);
 const howTo=document.createElement('div');howTo.id='howToPanel';howTo.className='modal hidden';howTo.innerHTML=WEAVE_GUIDE;app.appendChild(howTo);
@@ -165,7 +167,7 @@ for(const name of ['Custom',...new Set(ACTIONS.map(a=>a.category))]){
 }
 function selectPage(name){actionPage=name;customBar.host.hidden=name!=='Custom';$('actionBar').hidden=name==='Custom';for(const a of ACTIONS)buttons.get(a.id).hidden=a.category!==name;for(const b of $('spellTabs').children)b.classList.toggle('active',b.textContent===name)}
 
-function createActionButton(action){const b=document.createElement('button');b.className='action';b.style.setProperty('--tint',action.tint);
+function createActionButton(action){const b=document.createElement('button');b.className='action'+(action.id.startsWith('Aspect')?' aspect-action':'');b.style.setProperty('--tint',action.tint);
  const glyph=action.id==='MultiShot'?'<svg class="multi-shot-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 38 26 17m-8 0h8v8M12 42 33 21m-8 0h8v8M19 46 40 25m-8 0h8v8"/></svg>':action.id==='RapidFire'?'✷':action.id.includes('Sting')?'♜':action.id.includes('Aspect')?'◇':action.id==='HuntersMark'?'◎':'➶';
  b.innerHTML=`<span class="action-key">${bindingLabel(bindings['spell:'+action.id])}</span><span class="action-glyph">${glyph}</span><span class="action-name">${SPELLS[action.id]?.name||action.id}</span><span class="action-sweep"></span><span class="action-cooldown"></span>`;b.dataset.spell=action.id;b.dataset.description=describe(SPELLS[action.id]);b.title=b.dataset.description;b.onclick=()=>fire(action.id);return b}
 for(const action of ACTIONS){const b=createActionButton(action);$('actionBar').appendChild(b);buttons.set(action.id,b)}
@@ -490,6 +492,7 @@ function updateHud(){
  $('timeText').textContent=Math.floor(combat.time/60)+':'+String(Math.floor(combat.time%60)).padStart(2,'0');
  $('damageText').textContent=Math.floor(combat.damage).toLocaleString();$('dpsText').textContent=Math.floor(combat.damage/Math.max(combat.time,1)).toLocaleString();
  $('aspectText').textContent=SPELLS[combat.aspect]?.name||'Aspect of the Hawk';$('rapidText').textContent=combat.auras.rapidFire?'Rapid Fire '+Math.ceil(combat.auras.rapidFire-combat.time)+'s':'';
+ drawBuffBar(combat);
  customBar.updateAuto(combat.autoShot);
  $('autoText').textContent=!combat.autoShot?'OFF':range<combat.minRangeFor('AutoShot')?'ON · WAITING FOR RANGE':'ON';
  $('autoBtnLabel').textContent=combat.autoShot?'Stop Auto Shot':'Start Auto Shot';
@@ -592,11 +595,14 @@ function updateHud(){
   b.classList.toggle('dry',state.code==='mana');
   b.classList.toggle('proc-ready',state.usable&&state.procRemaining>0);
   b.classList.toggle('queued',state.queued);
+  const activeAspect=action.id===combat.aspect;
+  b.classList.toggle('active-aspect',activeAspect);
+  if(action.id.startsWith('Aspect'))b.setAttribute('aria-pressed',String(activeAspect));
   b.dataset.unavailableReason=state.code;
   b.setAttribute('aria-disabled',String(!state.usable));
   const status=state.queued?'QUEUED · press again to cancel':!state.usable?'Unavailable: '+state.reason:state.procRemaining>0?'READY · proc expires in '+state.procRemaining.toFixed(1)+'s':'Ready';
-  b.title=b.dataset.description+'\n\n'+status;
-  b.setAttribute('aria-label',SPELLS[action.id].name+' · '+status);
+  b.title=b.dataset.description+'\n\n'+(activeAspect?'ACTIVE ASPECT · ':'')+status;
+  b.setAttribute('aria-label',SPELLS[action.id].name+' · '+(activeAspect?'ACTIVE ASPECT · ':'')+status);
   b.querySelector('.action-cooldown').textContent=cd>0?cd>=10?Math.ceil(cd)+'s':cd.toFixed(1):'';
  }
  }
