@@ -1,14 +1,14 @@
 import {WeavingStats} from './weaving.js';
-import {attackRange,centerDistance} from './scale.js';
+import {attackRange,centerDistance,DEFAULT_TARGET_RANGE_RADIUS} from './scale.js';
 import {SPELLS,TREES,ACTIONS,RECORDS,PET_FAMILIES,MELEE,TRAPS,CHANNELS,TALENT_GATES,isShot,isHostile,talentValue} from './catalog.js';
 export {SPELLS,TREES,ACTIONS};
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
 const rangedWeapon=new Set(['AutoShot','AimedShot','MultiShot','SniperShot','ScatterShot']);
 const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin',TrackElementals:'Elemental',TrackGiants:'Giant',TrackHumanoids:'Humanoid',TrackUndead:'Undead'};
 export class Combat {
- constructor(random=Math.random){this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false};this.petFamily='Cat';this.reset()}
+ constructor(random=Math.random){this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetRangeRadius:DEFAULT_TARGET_RANGE_RADIUS};this.petFamily='Cat';this.reset()}
  reset(){
-  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,autoSwingStart:0,nextAuto:2.8,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
+  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
   this.weaving=new WeavingStats();
   this.log('Training begins.');
  }
@@ -19,7 +19,7 @@ export class Combat {
  distance(p){return centerDistance(p)}
  facing(p){return Math.cos(Math.atan2(-p.x,-p.z)-p.yaw)>=0}
  rangeFor(id){return attackRange(SPELLS[id],isShot(id)?(id==='SniperShot'?0:this.value('hawkEye'))+(this.auras.sniper&&id!=='SniperShot'?10:0):0).max}
- minRangeFor(id){return attackRange(SPELLS[id]).min}
+ minRangeFor(id){return attackRange(SPELLS[id],0,this.options.targetRangeRadius).min}
  petActive(){return !!this.pet?.active&&this.pet.health>0}
  stats(){
   const agi=200*(1+this.pct('lightningReflexes')),intellect=100;
@@ -396,17 +396,19 @@ export class Combat {
  }
  restartAutoSwing(){
   this.autoSwingStart=this.time;
-  this.nextAuto=this.time+2.8/this.rangedHaste();
+  this.nextAuto=this.time+Math.max(0,2.8/this.rangedHaste()-0.5);
+  this.autoRetryAt=null;
  }
  autoTimer(){
-  const duration=2.8/this.rangedHaste()+0.5;
+  const duration=Math.max(0.5,2.8/this.rangedHaste());
+  if(!this.autoShot)return {phase:'off',progress:0,remaining:0,duration,swingDuration:duration-0.5};
   if(this.autoResetByMelee)return {phase:'waiting',progress:0,remaining:duration,duration,swingDuration:duration-0.5};
   const swingDuration=Math.max(0,this.nextAuto-this.autoSwingStart);
   const cycle=swingDuration+0.5;
   const winding=this.autoWindupStart!==null;
-  const ready=winding?this.autoWindupEnd:this.nextAuto+0.5;
+  const ready=winding?this.autoWindupEnd:Math.max(this.nextAuto,this.autoRetryAt??0)+0.5;
   const elapsed=winding?swingDuration+this.time-this.autoWindupStart:Math.min(swingDuration,this.time-this.autoSwingStart);
-  return {phase:!this.autoShot?'off':winding?'windup':this.time>=this.nextAuto?'ready':'swing',
+  return {phase:!this.autoShot?'off':winding?'windup':this.autoRetryAt!==null?'retry':this.time>=this.nextAuto?'ready':'swing',
     progress:this.autoShot?clamp(elapsed/cycle,0,1):0,remaining:Math.max(0,ready-this.time),duration:cycle,swingDuration};
  }
  tickWeapons(player,moving){
@@ -416,18 +418,19 @@ export class Combat {
       this.weaving.windupClips++;
       this.autoWindupStart=null;
       this.autoWindupEnd=0;
-      this.restartAutoSwing();
+      this.autoRetryAt=this.time+0.5;
+    }
+    if(this.autoShot&&this.targetHealth>0&&ranged&&this.autoResetByMelee){
+      this.restartAutoSwing();this.autoResetByMelee=false;
     }
     if(!this.autoShot||this.targetHealth<=0||!ranged){
       if(this.autoShot&&this.targetHealth>0&&this.autoWindupStart!==null)this.weaving.windupClips++;
       this.autoWindupStart=null;
       this.autoWindupEnd=0;
-    }else if(!moving){
-      if(this.autoResetByMelee){
-        this.restartAutoSwing();
-        this.autoResetByMelee=false;
-      }
-      if(this.autoWindupStart===null&&this.time+1e-8>=this.nextAuto){
+    }else if(this.time+1e-8>=Math.max(this.nextAuto,this.autoRetryAt??0)){
+      if(moving){this.autoRetryAt=this.time+0.5}
+      else if(this.autoWindupStart===null){
+        this.autoRetryAt=null;
         this.autoWindupStart=this.time;
         this.autoWindupEnd=this.time+0.5;
       }else if(this.autoWindupStart!==null&&this.time+1e-8>=this.autoWindupEnd){
@@ -436,8 +439,8 @@ export class Combat {
         this.weaving.shot(this.time,this.expectedAutoShotAt,this.lastAutoShot);
         this.lastAutoShot=this.time;
         this.autoSwingStart=this.time;
-        this.expectedAutoShotAt=this.time+speed+0.5;
-        this.nextAuto=this.time+speed;
+        this.expectedAutoShotAt=this.time+Math.max(0.5,speed);
+        this.nextAuto=this.time+Math.max(0,speed-0.5);
         this.autoWindupStart=null;
         this.autoWindupEnd=0;
         this.projectiles.push({id:'AutoShot',at:this.time+range/SPELLS.AutoShot.speed});
@@ -453,6 +456,7 @@ export class Combat {
       this.autoWindupEnd=0;
       this.autoResetByMelee=true;
       this.nextAuto=Infinity;
+      this.autoRetryAt=null;
       const id=this.raptorQueued&&this.mana>=this.manaCost('RaptorStrike')&&this.time>=(this.cooldowns.RaptorStrike||0)?'RaptorStrike':'Melee';
       if(id==='RaptorStrike'){this.spend(id);this.cooldowns[id]=this.time+SPELLS[id].cooldownMs/1000;this.cooldownDurations[id]=SPELLS[id].cooldownMs/1000;this.raptorQueued=false}
       this.visualEvents.push({type:'melee',id});

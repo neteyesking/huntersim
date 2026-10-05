@@ -18,19 +18,19 @@ test('ranged dead zone, facing, and melee reach are enforced',()=>{
   assert.equal(combat.canCast('RaptorStrike',{...player,z:4},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,yaw:0},true),false);
 });
-test('Auto Shot starts at eight yards between body centers',()=>{
+test('Auto Shot uses the nominal minimum plus target range radius',()=>{
   const combat=new Combat(()=>0.9);
-  assert.equal(combat.minRangeFor('AutoShot'),8);
+  assert.equal(combat.minRangeFor('AutoShot'),10.8);
   assert.equal(combat.rangeFor('AutoShot'),38);
-  assert.equal(combat.canCast('ArcaneShot',{...player,z:7.99},true),false);
-  assert.equal(combat.canCast('ArcaneShot',{...player,z:8},true),true);
+  assert.equal(combat.canCast('ArcaneShot',{...player,z:10.79},true),false);
+  assert.equal(combat.canCast('ArcaneShot',{...player,z:10.8},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,z:38},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,z:38.1},true),false);
   assert.equal(combat.canCast('RaptorStrike',{...player,z:5},true),true);
   assert.equal(combat.canCast('RaptorStrike',{...player,z:5.1},true),false);  const below=new Combat(()=>0.9),atEdge=new Combat(()=>0.9);
   for(let i=0;i<68;i++){
-    below.tick(0.05,{...player,z:7.99},false);
-    atEdge.tick(0.05,{...player,z:8},false);
+    below.tick(0.05,{...player,z:10.79},false);
+    atEdge.tick(0.05,{...player,z:10.8},false);
   }
   assert.equal(below.events.some(e=>e.message==='Auto Shot fired'),false);
   assert.equal(atEdge.events.some(e=>e.message==='Auto Shot fired'),true);
@@ -56,24 +56,17 @@ test('movement interrupts a cast and sting slots replace one another',()=>{
   step(combat,1.6);
   assert.equal(combat.sting?.id,'ScorpidSting');
 });
-test('Auto Shot completes the full weapon swing before its half second windup',()=>{
-  const combat=new Combat(()=>0.9);
-  while(combat.time<2.7)combat.tick(0.05,player,false);
-  assert.equal(combat.autoWindupStart,null);
-  assert.equal(combat.lastAutoShot,null);
-  while(combat.time<2.85)combat.tick(0.05,player,false);
-  assert.ok(Math.abs(combat.autoWindupStart-2.8)<0.051);
-  assert.ok(Math.abs(combat.autoWindupEnd-combat.autoWindupStart-0.5)<1e-9);
-  while(combat.lastAutoShot===null)combat.tick(0.05,player,false);
-  const firstShot=combat.lastAutoShot;
-  while(combat.time<firstShot+2.7)combat.tick(0.05,player,false);
-  assert.equal(combat.autoWindupStart,null);
-  while(combat.time<firstShot+2.85)combat.tick(0.05,player,false);
-  assert.ok(Math.abs(combat.autoWindupStart-firstShot-2.8)<0.051);
-  assert.equal(combat.lastAutoShot,firstShot);
-  while(combat.time<firstShot+3.35)combat.tick(0.05,player,false);
-  assert.ok(combat.lastAutoShot>firstShot);
-  assert.ok(Math.abs(combat.lastAutoShot-firstShot-3.3)<0.06);
+test('Auto Shot opens with windup and includes it inside each weapon-speed cycle',()=>{
+ const c=new Combat(()=>.9);c.tick(0,player,false);
+ assert.equal(c.autoWindupStart,0);assert.equal(c.autoWindupEnd,.5);
+ for(let i=0;i<50;i++)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.lastAutoShot-.5)<1e-8);
+ assert.ok(Math.abs(c.nextAuto-2.8)<1e-8);
+ for(let i=0;i<230;i++)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.autoWindupStart-2.8)<1e-8);
+ for(let i=0;i<50;i++)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.lastAutoShot-3.3)<1e-8);
+ assert.ok(Math.abs(c.expectedAutoShotAt-6.1)<1e-8);
 });
 
 test('ranged spell casts finish their listed cast before the bow windup',()=>{
@@ -91,10 +84,11 @@ test('ranged spell casts finish their listed cast before the bow windup',()=>{
 test('movement cancels Auto Shot windup and melee white hits advance their timer',()=>{
   const combat=new Combat(()=>0.9);
   while(combat.time<2.85)combat.tick(0.05,player,false);
+  const previous= combat.lastAutoShot;
   combat.tick(0.05,player,true);
   assert.equal(combat.autoWindupStart,null);
-  assert.equal(combat.lastAutoShot,null);
-  assert.ok(combat.nextAuto>combat.time);
+  assert.equal(combat.lastAutoShot,previous);
+  assert.ok(combat.autoRetryAt>combat.time);
   const close={...player,z:4};
   while(combat.time<5.5)combat.tick(0.05,close,false);
   assert.ok(combat.previousMelee>0);
@@ -147,14 +141,14 @@ test('clearing the target blocks attacks while self buffs remain available',()=>
   assert.equal(combat.previousMelee,0);
 });
 for(const id of ['AimedShot','MultiShot','Volley'])test('Auto Shot starts and fires during '+id,()=>{
- const c=new Combat(()=>.9);
+ const c=new Combat(()=>.9);c.tick(0,player,false);
  for(let i=0;i<250;i++)c.tick(.01,player,false);
  assert.equal(c.castSpell(id,player),true);
- const cast=c.cast,until=cast.until;
+ const cast=c.cast,until=cast.until,previous=c.lastAutoShot;
  for(let i=0;i<35;i++)c.tick(.01,player,false);
  assert.ok(c.autoWindupStart!==null);
  assert.equal(c.cast,cast);
- while(c.lastAutoShot===null)c.tick(.01,player,false);
+ while(c.lastAutoShot===previous)c.tick(.01,player,false);
  assert.ok(Math.abs(c.lastAutoShot-3.3)<1e-8);
  assert.equal(c.cast,cast);assert.equal(c.cast.until,until);
  assert.equal(c.weaving.windupClips,0);
@@ -163,31 +157,71 @@ for(const id of ['AimedShot','MultiShot','Volley'])test('Auto Shot starts and fi
  assert.equal(c.cast,null);
 });
 test('starting a cast during Auto Shot windup preserves its release time',()=>{
- const c=new Combat(()=>.9);
+ const c=new Combat(()=>.9);c.tick(0,player,false);
  for(let i=0;i<290;i++)c.tick(.01,player,false);
- const start=c.autoWindupStart,end=c.autoWindupEnd;
+ const start=c.autoWindupStart,end=c.autoWindupEnd,previous=c.lastAutoShot;
  assert.equal(c.castSpell('AimedShot',player),true);
  c.tick(.01,player,false);
  assert.equal(c.autoWindupStart,start);assert.equal(c.autoWindupEnd,end);
- while(c.lastAutoShot===null)c.tick(.01,player,false);
+ while(c.lastAutoShot===previous)c.tick(.01,player,false);
  assert.ok(Math.abs(c.lastAutoShot-end)<1e-8);assert.equal(c.cast.id,'AimedShot');
  assert.equal(c.weaving.windupClips,0);
 });
 test('movement during overlapping cast and Auto Shot windup cancels both',()=>{
- const c=new Combat(()=>.9);
+ const c=new Combat(()=>.9);c.tick(0,player,false);
  for(let i=0;i<290;i++)c.tick(.01,player,false);
  assert.equal(c.castSpell('AimedShot',player),true);
+ const previous=c.lastAutoShot;
  c.tick(.01,player,true);
- assert.equal(c.cast,null);assert.equal(c.autoWindupStart,null);assert.equal(c.lastAutoShot,null);
- assert.equal(c.weaving.windupClips,1);assert.equal(c.autoTimer().progress,0);
+ assert.equal(c.cast,null);assert.equal(c.autoWindupStart,null);assert.equal(c.lastAutoShot,previous);
+ assert.equal(c.weaving.windupClips,1);assert.equal(c.autoTimer().phase,'retry');
+ assert.ok(Math.abs(c.autoRetryAt-c.time-.5)<1e-8);
 });
 test('movement before the windup leaves the ranged swing clock running',()=>{
- const c=new Combat(()=>.9);const ready=c.nextAuto;
+ const c=new Combat(()=>.9);c.tick(0,player,false);for(let i=0;i<50;i++)c.tick(.01,player,false);
+ const ready=c.nextAuto,previous=c.lastAutoShot;
  for(let i=0;i<200;i++)c.tick(.01,player,true);
- assert.equal(c.nextAuto,ready);assert.equal(c.autoSwingStart,0);assert.equal(c.weaving.windupClips,0);
+ assert.equal(c.nextAuto,ready);assert.ok(Math.abs(c.autoSwingStart-.5)<1e-8);assert.equal(c.weaving.windupClips,0);
  assert.equal(c.castSpell('AimedShot',player),false);
  c.tick(.01,player,false);
  assert.equal(c.castSpell('AimedShot',player),true);
- while(c.lastAutoShot===null)c.tick(.01,player,false);
+ while(c.lastAutoShot===previous)c.tick(.01,player,false);
  assert.ok(Math.abs(c.lastAutoShot-3.3)<1e-8);
+});
+
+
+test('haste shortens the Auto Shot period while the windup stays at half a second',()=>{
+ const c=new Combat(()=>.9);c.buff('rapidFire',15);c.tick(0,player,false);
+ for(let i=0;i<50;i++)c.tick(.01,player,false);
+ const first=c.lastAutoShot;assert.ok(Math.abs(c.expectedAutoShotAt-first-2)<1e-8);
+ for(let i=0;i<150;i++)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.autoWindupEnd-c.autoWindupStart-.5)<1e-8);
+ for(let i=0;i<50;i++)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.lastAutoShot-first-2)<1e-8);
+});
+test('a shot ready while moving retries at half-second intervals and resumes automatically',()=>{
+ const c=new Combat(()=>.9);c.tick(0,player,true);
+ assert.equal(c.autoRetryAt,.5);
+ for(let i=0;i<50;i++)c.tick(.01,player,true);
+ assert.ok(Math.abs(c.autoRetryAt-1)<1e-8);assert.equal(c.lastAutoShot,null);
+ for(let i=0;i<49;i++)c.tick(.01,player,false);
+ assert.equal(c.autoWindupStart,null);
+ c.tick(.01,player,false);assert.ok(Math.abs(c.autoWindupStart-1)<1e-8);
+ for(let i=0;i<50;i++)c.tick(.01,player,false);
+ assert.ok(Math.abs(c.lastAutoShot-1.5)<1e-8);assert.equal(c.autoShot,true);
+});
+
+test('target range radius changes shooting availability while melee keeps its five-yard boundary',()=>{
+ const c=new Combat(()=>.9);
+ for(const radius of [0,2.8,5]){
+  c.options.targetRangeRadius=radius;
+  assert.equal(c.minRangeFor('AutoShot'),8+radius);
+  for(const id of ['ArcaneShot','AimedShot','MultiShot','SerpentSting']){
+   assert.equal(c.minRangeFor(id),8+radius);
+   assert.equal(c.canCast(id,{...player,z:8+radius-.01},true),false);
+   assert.equal(c.canCast(id,{...player,z:8+radius},true),true);
+  }
+  assert.equal(c.canCast('RaptorStrike',{...player,z:5},true),true);
+  assert.equal(c.canCast('RaptorStrike',{...player,z:5.01},true),false);
+ }
 });

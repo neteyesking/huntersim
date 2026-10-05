@@ -24,10 +24,21 @@ try{
  const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-sv-guide.png',Buffer.from(shot.data,'base64'));
  await evaluate("document.getElementById('guidePreset').click()");await wait(100);
  assert.equal(await evaluate("document.getElementById('howToPanel').classList.contains('hidden')"),true);
- assert.ok((await evaluate("document.getElementById('rangeText').textContent")).startsWith('8.3'));
+ assert.ok((await evaluate("document.getElementById('rangeText').textContent")).startsWith('11.1'));
  assert.equal(await evaluate("document.getElementById('offhandOption').checked"),false);
  assert.ok((await evaluate("document.getElementById('petVitals').textContent")).includes('No active pet'));
  assert.equal(await evaluate("JSON.parse(localStorage.getItem('hunter-talents-v2')).laceratingStrikes"),1);
+ await evaluate("document.getElementById('trainingBtn').click();var input=document.getElementById('targetRadiusOption');input.value='5';input.dispatchEvent(new Event('change'))");await wait(100);
+ assert.ok((await evaluate("document.getElementById('targetRangeNote').textContent")).includes('13.0 yd'));
+ assert.equal(await evaluate("document.querySelector('[data-spell=ArcaneShot]').dataset.unavailableReason"),'range');
+ await evaluate("var input=document.getElementById('targetRadiusOption');input.value='2.8';input.dispatchEvent(new Event('change'));document.getElementById('trainingClose').click()");await wait(100);
+ assert.ok((await evaluate("document.getElementById('targetRangeNote').textContent")).includes('10.8 yd'));
+ assert.notEqual(await evaluate("document.querySelector('[data-spell=ArcaneShot]').dataset.unavailableReason"),'range');
+ await evaluate("document.getElementById('autoTimerToggle').click()");await wait(100);
+ assert.equal(await evaluate("document.getElementById('autoTimerToggle').getAttribute('aria-pressed')"),'false');
+ assert.equal(await evaluate("document.getElementById('autoBtnLabel').textContent"),'Start Auto Shot');
+ await evaluate("document.getElementById('autoTimerToggle').click()");await wait(100);
+ assert.equal(await evaluate("document.getElementById('autoTimerToggle').getAttribute('aria-pressed')"),'true');
  await evaluate("document.getElementById('clearTalents').click()");await send('Page.reload');await wait(500);await until("document.getElementById('pointsBadge')?.textContent==='0/51'");
  await evaluate("document.getElementById('talentBtn').click();document.getElementById('svPreset').click()");await wait(100);
  assert.equal(await evaluate("document.getElementById('pointsBadge').textContent"),'51/51');
@@ -35,7 +46,7 @@ try{
  await evaluate("document.getElementById('howToBtn').click()");
  await send('Input.dispatchKeyEvent',{type:'keyDown',code:'Escape',key:'Escape'});await send('Input.dispatchKeyEvent',{type:'keyUp',code:'Escape',key:'Escape'});
  assert.equal(await evaluate("document.getElementById('howToPanel').classList.contains('hidden')"),true);
- assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',defaultBuild:'0/20/31',savedBuildPreserved:true,presetRange:8.25,runtimeErrors:errors.length}));
+ assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',defaultBuild:'0/20/31',savedBuildPreserved:true,presetRange:11.05,runtimeErrors:errors.length}));
 }finally{
  if(previous!==undefined)await evaluate(previous===null?"localStorage.removeItem('hunter-talents-v2')":"localStorage.setItem('hunter-talents-v2',"+JSON.stringify(previous)+")");
  ws.close();await fetch(debug+'/json/close/'+tab.id);

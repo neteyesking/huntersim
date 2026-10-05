@@ -127,7 +127,7 @@ Sparring attacks every two seconds while the hunter is in melee range or an atta
 - Frost Trap is represented by a timed target slow. Ground fields, area targeting, multiple units, party distribution and creature AI are not fully represented.
 - The supplemental records listed above should not be treated as proof that a live Hunter can learn them.
 - Forever itself marks Serpent’s attack power coefficient, Sniper charge spending and Lacerating Strikes interpretation as needing in-game verification.
-- The user-requested Auto Shot cycle is the complete weapon swing followed by a separate 0.5-second windup. Preserve this behavior unless intentionally revisiting that requirement.
+- Auto Shot includes its fixed 0.5-second windup within the hasted weapon period. The first shot opens with windup; movement cancels windup and uses 0.5-second retries. A melee swing resets the ranged period on re-entry to range, including while moving.
 - Flat-ground movement and camera remain the documented training approximation. Terrain, camera collision, slopes, swimming and line of sight remain outside this arena.
 
 ## Next work for another chat

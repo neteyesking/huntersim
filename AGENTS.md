@@ -29,7 +29,7 @@ Action-bar availability must come from Combat.abilityState(), which canCast() al
 
 Read MOVEMENT.md before changing physics, camera, or input handling. src/movement.js owns the numeric rules; src/main.js owns browser input and rendering. tools/movement-browser-check.mjs tests the integration through real key/mouse input. The exported movementSnapshot() returns copied state for browser debugging; it must not become a mutation API.
 
-Auto Shot display uses Combat.autoTimer() and autoSwingStart. Do not use lastAutoShot as the bar start after melee or a cancelled windup; it remains the timestamp for interval measurements. src/weaving.js tracks release delays and completed melee weaves. Keep measurement updates in combat, not the render loop. See README.md for metric definitions and tools/weaving-browser-check.mjs for the input-driven check.
+Auto Shot display uses Combat.autoTimer() and autoSwingStart. Do not use lastAutoShot as the bar start after melee; it remains the timestamp for interval measurements. src/weaving.js tracks release delays and completed melee weaves. Keep measurement updates in combat, not the render loop. See README.md for metric definitions and tools/weaving-browser-check.mjs for the input-driven check.
 
 Keep documentation and test utilities portable. Do not commit machine-specific paths, private network addresses, or temporary share URLs. Browser checks receive BROWSER_DEBUG_URL and GAME_URL through their environment; the data exporter receives its input directory through --source.
 
@@ -40,3 +40,5 @@ Target nameplate rendering and debuff snapshots live in src/nameplate.js. Read e
 SV Weave talents and saved-build fallback are in src/presets.js; src/weave-guide.js owns the How to content. Keep the talent string aligned with Forever's SurvivalWeaveTalents and distinguish its APL from manual movement and queued Raptor Strike in this game. Preserve valid saved builds when changing defaults.
 
 Production caching is handled by vite.config.js and the self-contained tools/release-loader.js embedded in built HTML. Emit release.json with every build and publish it alongside assets and HTML. Keep hashed assets and a unique release ID; do not replace the inline loader with a bundle that stale HTML might be unable to fetch.
+
+The gameplay ranged minimum is the raw spell minimum plus targetRangeRadius (default 8 + 2.8 = 10.8 yd). scale.js applies this conversion without changing imported spell rows; main.js updates the range ring and Training control. Melee remains at 5 yd. Auto Shot uses the current Forever timing: first windup on activation, windup included in subsequent hasted weapon periods, 0.5 s movement retries and automatic resume on ranged re-entry after melee. Start that reset once even while moving; stopping must not restart it.

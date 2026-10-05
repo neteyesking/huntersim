@@ -24,11 +24,13 @@ try{
  await until(async()=>(await state()).stats.active?.swings>=1);
  assert.equal((await state()).timer.progress,0);
  assert.equal(await evaluate("document.getElementById('autoBar').style.width"),'0%');
- await key('keyDown','KeyS');await until(async()=>(await movement()).player.z>=8.15);
- assert.equal((await state()).timer.phase,'waiting');
+ const boundary=(await state()).rangedMin;
+ await key('keyDown','KeyS');await until(async()=>(await movement()).player.z>=boundary+.15);
+ assert.equal((await state()).timer.phase,'swing');
+ const returning=await state();
  await key('keyUp','KeyS');await wait(50);
- const restarted=await state();assert.equal(restarted.timer.phase,'swing');assert.ok(restarted.timer.progress<.08);
- assert.ok(parseFloat(await evaluate("document.getElementById('autoBar').style.width"))<8);
+ const restarted=await state();assert.equal(restarted.timer.phase,'swing');assert.ok(restarted.timer.progress>=returning.timer.progress);assert.ok(restarted.timer.progress<.4);
+ assert.ok(parseFloat(await evaluate("document.getElementById('autoBar').style.width"))<40);
  await until(async()=>(await state()).stats.weaves>=1);
  const result=await state();assert.equal(result.stats.weaves,1);assert.ok(result.stats.lastDelay>0);assert.ok(result.stats.lastWeave.away>0);
  assert.equal(await evaluate("document.getElementById('completedWeaves').textContent"),'1');
