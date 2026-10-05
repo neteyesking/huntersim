@@ -66,3 +66,22 @@ test('turning Auto Shot off cancels pending measurements and reset clears all st
  c.autoShot=true;nextShot(c);assert.equal(c.weaving.intervals,0);assert.equal(c.weaving.weaves,0);
  c.reset();assert.equal(c.weaving.shots,0);assert.equal(c.weaving.totalDelay,0);assert.equal(c.weaving.windupClips,0);near(c.autoTimer().progress,0);
 });
+test('a 3.0 second weapon releases every 3.0 seconds with the final 0.5 seconds as windup',()=>{
+ const c=new Combat(()=>.9,{rangedWeaponSpeed:3});c.tick(0,ranged,false);advance(c,.5);
+ const first=c.lastAutoShot;near(first,.5);near(c.nextAuto-first,2.5);near(c.expectedAutoShotAt-first,3);
+ near(c.autoTimer().duration,3);near(c.autoTimer().swingDuration,2.5);
+ advance(c,2.49);assert.equal(c.autoWindupStart,null);near(c.lastAutoShot,first);
+ advance(c,.01);near(c.autoWindupStart-first,2.5);near(c.autoWindupEnd-first,3);
+ advance(c,.49);near(c.lastAutoShot,first);
+ advance(c,.01);near(c.lastAutoShot-first,3);
+});
+test('manual re-enable after melee resumes one 3.0 second cycle and never adds a second full wait',()=>{
+ const c=new Combat(()=>.9,{rangedWeaponSpeed:3});nextShot(c);advance(c,2);
+ c.tick(.01,melee,false);assert.equal(c.autoResetByMelee,true);
+ c.autoShot=false;const last=c.lastAutoShot;advance(c,4,ranged);near(c.lastAutoShot,last);assert.equal(c.autoTimer().phase,'off');
+ c.autoShot=true;c.tick(.01,ranged,true);const start=c.time;
+ near(c.autoTimer().duration,3);near(c.nextAuto-start,2.5);
+ advance(c,1,ranged,true);advance(c,1.49);assert.equal(c.autoWindupStart,null);
+ advance(c,.01);near(c.autoWindupStart-start,2.5);
+ advance(c,.5);near(c.lastAutoShot-start,3);assert.equal(c.autoShot,true);
+});

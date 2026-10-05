@@ -6,7 +6,7 @@ const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
 const rangedWeapon=new Set(['AutoShot','AimedShot','MultiShot','SniperShot','ScatterShot']);
 const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin',TrackElementals:'Elemental',TrackGiants:'Giant',TrackHumanoids:'Humanoid',TrackUndead:'Undead'};
 export class Combat {
- constructor(random=Math.random){this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
+ constructor(random=Math.random,{rangedWeaponSpeed=2.8}={}){this.rangedWeaponSpeed=rangedWeaponSpeed;this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
  reset(){
   Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
   this.weaving=new WeavingStats();
@@ -190,7 +190,7 @@ export class Combat {
   if(this.targetHealth===0&&this.rank('rapidKilling'))this.buff('rapidKilling',20);
   return amount;
  }
- weaponDamage(){return 95+this.random()*50+2.8*this.stats().ranged/14+2.8*17.5}
+ weaponDamage(){return 95+this.random()*50+this.rangedWeaponSpeed*this.stats().ranged/14+this.rangedWeaponSpeed*17.5}
  meleeDamage(){return 80+this.stats().melee*2.4/14}
  dot(id,amount,period,duration,{raw=false,pet=false,drain=0}={}){
   this.dots[id]={id,amount:raw?amount:amount*this.damageMultiplier(id,pet),period,next:this.time+period,until:this.time+duration,pet,drain};
@@ -396,11 +396,11 @@ export class Combat {
  }
  restartAutoSwing(){
   this.autoSwingStart=this.time;
-  this.nextAuto=this.time+Math.max(0,2.8/this.rangedHaste()-0.5);
+  this.nextAuto=this.time+Math.max(0,this.rangedWeaponSpeed/this.rangedHaste()-0.5);
   this.autoRetryAt=null;
  }
  autoTimer(){
-  const duration=Math.max(0.5,2.8/this.rangedHaste());
+  const duration=Math.max(0.5,this.rangedWeaponSpeed/this.rangedHaste());
   if(!this.autoShot)return {phase:'off',progress:0,remaining:0,duration,swingDuration:duration-0.5};
   if(this.autoResetByMelee)return {phase:'waiting',progress:0,remaining:duration,duration,swingDuration:duration-0.5};
   const swingDuration=Math.max(0,this.nextAuto-this.autoSwingStart);
@@ -434,7 +434,7 @@ export class Combat {
         this.autoWindupStart=this.time;
         this.autoWindupEnd=this.time+0.5;
       }else if(this.autoWindupStart!==null&&this.time+1e-8>=this.autoWindupEnd){
-        const speed=2.8/this.rangedHaste();
+        const speed=this.rangedWeaponSpeed/this.rangedHaste();
         this.autoDelay=this.expectedAutoShotAt===null?0:Math.max(0,this.time-this.expectedAutoShotAt);
         this.weaving.shot(this.time,this.expectedAutoShotAt,this.lastAutoShot);
         this.lastAutoShot=this.time;

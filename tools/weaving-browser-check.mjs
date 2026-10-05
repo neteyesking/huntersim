@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 const debugUrl=process.env.BROWSER_DEBUG_URL,gameUrl=process.env.GAME_URL;
 if(!debugUrl||!gameUrl)throw new Error('Set BROWSER_DEBUG_URL and GAME_URL before running browser checks');
-const tabs=await (await fetch(new URL('/json/list',debugUrl))).json();
-const tab=tabs.find(t=>t.type==='page'&&t.url.startsWith(gameUrl));
+const tab=await (await fetch(new URL('/json/new?about:blank',debugUrl),{method:'PUT'})).json();
 const ws=new WebSocket(tab.webSocketDebuggerUrl);
 await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=reject});
 let id=0;const pending=new Map(),errors=[];
@@ -18,7 +17,7 @@ const reset=async()=>{await evaluate("document.getElementById('resetBtn').click(
 const state=()=>evaluate("import('/src/main.js').then(m=>m.weavingSnapshot())");
 const until=async predicate=>{const deadline=Date.now()+18000;while(Date.now()<deadline){if(await predicate())return;await wait(35);}throw Error('Timed out waiting for weaving state');};
 try{
- await send('Runtime.enable');await send('Page.reload',{ignoreCache:true});await wait(1500);await reset();
+ await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:gameUrl});await until(async()=>await evaluate("!!document.getElementById('autoTrackToggle')"));await wait(500);await reset();
  await until(async()=>(await state()).stats.shots>=1);
  await key('keyDown','KeyW');await until(async()=>(await movement()).player.z<=4.7);await key('keyUp','KeyW');
  await until(async()=>(await state()).stats.active?.swings>=1);
@@ -38,5 +37,14 @@ try{
  const screenshot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-weaving-stats.png',Buffer.from(screenshot.data,'base64'));
  await evaluate("document.getElementById('combatLogTab').click()");assert.equal(await evaluate("document.getElementById('combatLogBody').classList.contains('hidden')"),false);
  await evaluate("document.getElementById('weavingTab').click()");await reset();assert.equal((await state()).stats.weaves,0);
+ await evaluate("document.getElementById('autoTrackToggle').click()");await wait(100);
+ assert.equal(await evaluate("document.getElementById('autoTrackToggle').getAttribute('aria-pressed')"),'false');
+ assert.ok((await evaluate("document.getElementById('autoTrackLabel').textContent")).includes('OFF · START'));
+ const stopped=await state();await wait(3200);assert.equal((await state()).stats.shots,stopped.stats.shots);
+ await evaluate("document.getElementById('autoTrackToggle').click()");await wait(100);
+ assert.equal(await evaluate("document.getElementById('autoTrackToggle').getAttribute('aria-pressed')"),'true');
+ assert.ok((await evaluate("document.getElementById('autoTrackLabel').textContent")).includes('ON · STOP'));
+ await until(async()=>(await state()).stats.shots>stopped.stats.shots);
+
  assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',restartedProgress:restarted.timer.progress,stats:result.stats,runtimeErrors:errors.length}));
-}finally{await key('keyUp','KeyW');await key('keyUp','KeyS');ws.close()}
+}finally{await key('keyUp','KeyW');await key('keyUp','KeyS');ws.close();await fetch(new URL('/json/close/'+tab.id,debugUrl))}

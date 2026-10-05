@@ -162,3 +162,7 @@
 #autoTimerToggle{cursor:pointer;background:#213e37;border:1px solid #8ba47d;border-radius:3px;color:#e9d09a;padding:0;pointer-events:auto}#autoTimerToggle[aria-pressed="false"]{opacity:.45}#autoTimerToggle:hover{border-color:#f0d397}
 
 .range-legend{font-size:10px;line-height:1.5;color:#c3c5a2;border-top:1px solid #52675a55;padding-top:7px;margin-top:7px}
+
+#autoTrackToggle{display:block;width:100%;padding:0;overflow:hidden;cursor:pointer;pointer-events:auto;text-align:left}
+#autoTrackToggle:hover,#autoTrackToggle:focus-visible{border-color:#fff1b0;outline:1px solid #fff1b0}
+#autoTrackToggle[aria-pressed="false"]{border-color:#baa47e;background:#29251e}
