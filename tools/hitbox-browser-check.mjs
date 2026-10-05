@@ -12,29 +12,29 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const until=async expression=>{for(let i=0;i<100;i++){const value=await evaluate(expression);if(value)return value;await wait(100)}throw Error('Timed out: '+expression)};
 const close=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 const snapshot=()=>evaluate("import('/src/main.js').then(m=>m.rangeSnapshot())");
-const setRadius=async value=>{await evaluate(`(()=>{const input=document.getElementById('targetHitboxOption');input.value=${value};input.dispatchEvent(new Event('change'))})()`);await until("import('/src/main.js').then(m=>Math.abs(m.rangeSnapshot().hitboxRadius-"+value+")<1e-8)")};
+const setRadius=async value=>{await evaluate(`(()=>{const input=document.getElementById('targetReachOption');input.value=${value};input.dispatchEvent(new Event('change'))})()`);await until("import('/src/main.js').then(m=>Math.abs(m.rangeSnapshot().reachRingRadius-"+value+")<1e-8)")};
 try{
  await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:game});
- await until("!!document.getElementById('targetHitboxOption')");
+ await until("!!document.getElementById('targetReachOption')");
  await evaluate("if(document.getElementById('autoTimerToggle').getAttribute('aria-pressed')==='true')document.getElementById('autoTimerToggle').click()");
  const results=[];
- for(const radius of [2.8,5,1,20]){
+ for(const radius of [1.5,5,1,20]){
   await setRadius(radius);const s=await snapshot();
-  for(const actual of [s.hitboxRadius,s.hitboxOverlayRadius,s.clickRadius])close(actual,radius);
-  close(s.meleeMax,5+radius-2.8);close(s.rangedMin,8+radius);
-  close(s.markers.melee,s.meleeMax);close(s.markers.rangedMin,s.rangedMin);close(s.markers.rangedMax,s.rangedMax);
+  close(s.reachRingRadius,radius);close(s.bodyRadius,.30555);close(s.clickRadius,.65);
+  close(s.meleeMax,Math.max(5,1.5+radius+4/3));close(s.rangedMin,8+1.5+radius);
+  close(s.rangedMax,35+1.5+radius);close(s.markers.melee,s.meleeMax);close(s.markers.rangedMin,s.rangedMin);close(s.markers.rangedMax,s.rangedMax);
   close(s.markers.deadZone.inner,s.meleeMax);close(s.markers.deadZone.outer,s.rangedMin);
   results.push(s);
  }
  await setRadius(5);await wait(500);
  const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-hitbox-zones.png',Buffer.from(shot.data,'base64'));
  await send('Input.dispatchKeyEvent',{type:'keyDown',code:'KeyW',key:'w'});
- await until("import('/src/main.js').then(m=>m.movementSnapshot().player.z<6.8)");
+ await until("import('/src/main.js').then(m=>m.movementSnapshot().player.z<7.7)");
  await send('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});await wait(100);
- const z=await evaluate("import('/src/main.js').then(m=>m.movementSnapshot().player.z)");assert.ok(z>5&&z<7.2);
+ const z=await evaluate("import('/src/main.js').then(m=>m.movementSnapshot().player.z)");assert.ok(z>5&&z<7.84);
  assert.notEqual(await evaluate("document.querySelector('[data-spell=RaptorStrike]').dataset.unavailableReason"),'range');
  assert.equal(await evaluate("document.querySelector('[data-spell=ArcaneShot]').dataset.unavailableReason"),'range');
- await setRadius(2.8);
+ await setRadius(1.5);
  assert.equal(await evaluate("document.querySelector('[data-spell=RaptorStrike]').dataset.unavailableReason"),'range');
  assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',sizes:results,meleePosition:z,runtimeErrors:errors.length}));
 }finally{

@@ -18,19 +18,19 @@ test('ranged dead zone, facing, and melee reach are enforced',()=>{
   assert.equal(combat.canCast('RaptorStrike',{...player,z:4},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,yaw:0},true),false);
 });
-test('Auto Shot uses the nominal minimum plus target hitbox radius',()=>{
+test('Auto Shot uses the nominal minimum plus both combat reaches',()=>{
   const combat=new Combat(()=>0.9);
-  assert.equal(combat.minRangeFor('AutoShot'),10.8);
+  assert.equal(combat.minRangeFor('AutoShot'),11);
   assert.equal(combat.rangeFor('AutoShot'),38);
-  assert.equal(combat.canCast('ArcaneShot',{...player,z:10.79},true),false);
-  assert.equal(combat.canCast('ArcaneShot',{...player,z:10.8},true),true);
+  assert.equal(combat.canCast('ArcaneShot',{...player,z:10.99},true),false);
+  assert.equal(combat.canCast('ArcaneShot',{...player,z:11},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,z:38},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,z:38.1},true),false);
   assert.equal(combat.canCast('RaptorStrike',{...player,z:5},true),true);
   assert.equal(combat.canCast('RaptorStrike',{...player,z:5.1},true),false);  const below=new Combat(()=>0.9),atEdge=new Combat(()=>0.9);
   for(let i=0;i<68;i++){
-    below.tick(0.05,{...player,z:10.79},false);
-    atEdge.tick(0.05,{...player,z:10.8},false);
+    below.tick(0.05,{...player,z:10.99},false);
+    atEdge.tick(0.05,{...player,z:11},false);
   }
   assert.equal(below.events.some(e=>e.message==='Auto Shot fired'),false);
   assert.equal(atEdge.events.some(e=>e.message==='Auto Shot fired'),true);
@@ -211,26 +211,26 @@ test('a shot ready while moving retries at half-second intervals and resumes aut
  assert.ok(Math.abs(c.lastAutoShot-1.5)<1e-8);assert.equal(c.autoShot,true);
 });
 
-test('target hitbox radius changes shooting availability and melee follows the target hitbox edge',()=>{
+test('combat reach changes both ranged boundaries and preserves the melee floor',()=>{
  const c=new Combat(()=>.9);
- for(const radius of [0,2.8,5]){
-  c.options.targetHitboxRadius=radius;
-  assert.equal(c.minRangeFor('AutoShot'),8+radius);
+ for(const radius of [0,1.5,5]){
+  c.options.targetCombatReach=radius;
+  assert.equal(c.minRangeFor('AutoShot'),8+1.5+radius);
   for(const id of ['ArcaneShot','AimedShot','MultiShot','SerpentSting']){
-   assert.equal(c.minRangeFor(id),8+radius);
-   assert.equal(c.canCast(id,{...player,z:8+radius-.01},true),false);
-   assert.equal(c.canCast(id,{...player,z:8+radius},true),true);
+   assert.equal(c.minRangeFor(id),8+1.5+radius);
+   assert.equal(c.canCast(id,{...player,z:8+1.5+radius-.01},true),false);
+   assert.equal(c.canCast(id,{...player,z:8+1.5+radius},true),true);
   }
-  const melee=5+radius-2.8;
+  const melee=Math.max(5,1.5+radius+4/3);
   assert.equal(c.rangeFor('RaptorStrike'),melee);
   assert.equal(c.canCast('RaptorStrike',{...player,z:melee},true),true);
   assert.equal(c.canCast('RaptorStrike',{...player,z:melee+.01},true),false);
  }
 });
-test('larger hitbox extends both weapon swings and dummy sparring',()=>{
+test('larger combat reach extends both weapon swings and dummy sparring',()=>{
  const small=new Combat(()=>.9),large=new Combat(()=>.9);
  for(const c of [small,large]){c.autoShot=false;c.options.dualWield=true;c.options.sparring=true}
- large.options.targetHitboxRadius=5;
+ large.options.targetCombatReach=5;
  for(let i=0;i<60;i++)for(const c of [small,large])c.tick(.05,{...player,z:6.5},false);
  assert.equal(small.previousMelee,0);assert.equal(small.nextOffhand,2.4);assert.equal(small.health,small.maxHealth);
  assert.ok(large.previousMelee>0);assert.ok(large.nextOffhand>2.4);assert.ok(large.health<large.maxHealth);

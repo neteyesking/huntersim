@@ -1,12 +1,12 @@
 import {WeavingStats} from './weaving.js';
-import {attackRange,centerDistance,DEFAULT_TARGET_HITBOX_RADIUS} from './scale.js';
+import {attackRange,centerDistance,DEFAULT_TARGET_COMBAT_REACH} from './scale.js';
 import {SPELLS,TREES,ACTIONS,RECORDS,PET_FAMILIES,MELEE,TRAPS,CHANNELS,TALENT_GATES,isShot,isHostile,talentValue} from './catalog.js';
 export {SPELLS,TREES,ACTIONS};
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
 const rangedWeapon=new Set(['AutoShot','AimedShot','MultiShot','SniperShot','ScatterShot']);
 const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin',TrackElementals:'Elemental',TrackGiants:'Giant',TrackHumanoids:'Humanoid',TrackUndead:'Undead'};
 export class Combat {
- constructor(random=Math.random){this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetHitboxRadius:DEFAULT_TARGET_HITBOX_RADIUS};this.petFamily='Cat';this.reset()}
+ constructor(random=Math.random){this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
  reset(){
   Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
   this.weaving=new WeavingStats();
@@ -18,8 +18,8 @@ export class Combat {
  pct(field,index=0){return this.value(field,index)/100}
  distance(p){return centerDistance(p)}
  facing(p){return Math.cos(Math.atan2(-p.x,-p.z)-p.yaw)>=0}
- rangeFor(id){return attackRange(SPELLS[id],isShot(id)?(id==='SniperShot'?0:this.value('hawkEye'))+(this.auras.sniper&&id!=='SniperShot'?10:0):0,this.options.targetHitboxRadius).max}
- minRangeFor(id){return attackRange(SPELLS[id],0,this.options.targetHitboxRadius).min}
+ rangeFor(id){return attackRange(SPELLS[id],isShot(id)?(id==='SniperShot'?0:this.value('hawkEye'))+(this.auras.sniper&&id!=='SniperShot'?10:0):0,this.options.targetCombatReach).max}
+ minRangeFor(id){return attackRange(SPELLS[id],0,this.options.targetCombatReach).min}
  petActive(){return !!this.pet?.active&&this.pet.health>0}
  stats(){
   const agi=200*(1+this.pct('lightningReflexes')),intellect=100;

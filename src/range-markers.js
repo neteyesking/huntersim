@@ -21,11 +21,11 @@ export function createRangeMarkers(scene){
  };
  let previous='';
  return {
-  update({hitbox,meleeMax,rangedMin,rangedMax}){
-   const key=[hitbox,meleeMax,rangedMin,rangedMax].join(':');if(key===previous)return false;previous=key;
-   setBand(meleeFill,hitbox,meleeMax);setBand(deadFill,meleeMax,rangedMin);
+  update({reach,meleeMax,rangedMin,rangedMax}){
+   const key=[reach,meleeMax,rangedMin,rangedMax].join(':');if(key===previous)return false;previous=key;
+   setBand(meleeFill,reach,meleeMax);setBand(deadFill,meleeMax,rangedMin);
    setBand(melee,meleeMax-.045,meleeMax+.045);setBand(ranged,rangedMin-.045,rangedMin+.045);setBand(outer,rangedMax-.045,rangedMax+.045);
-   paint(meleeLabel,'WEAVE / MELEE ≤ '+meleeMax.toFixed(1)+' YD',(hitbox+meleeMax)/2);
+   paint(meleeLabel,'WEAVE / MELEE ≤ '+meleeMax.toFixed(1)+' YD',(reach+meleeMax)/2);
    paint(deadLabel,'DEAD ZONE · '+meleeMax.toFixed(1)+'–'+rangedMin.toFixed(1)+' YD',(meleeMax+rangedMin)/2);
    paint(rangedLabel,'RANGED ≥ '+rangedMin.toFixed(1)+' YD',rangedMin+.7);
    return true;
