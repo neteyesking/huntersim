@@ -188,7 +188,7 @@
 .bar-slot:focus-visible,.bar-choice:focus-visible{outline:2px solid #f1d492;outline-offset:2px}
 .bar-editor-tools,.bar-search-row,.bar-editor-footer{display:flex;gap:10px;align-items:center;justify-content:space-between}
 .bar-editor-tools strong{font-size:12px;color:#eed3a1}
-.bar-search-row input,.bar-search-row select{min-width:0;padding:10px;border:1px solid #526c60;background:#0c1a1e;color:#eee;font:12px inherit}
+.bar-search-row input,.bar-search-row select{min-width:0;padding:10px;border:1px solid #526c60;background:#0c1a1e;color:#eee;font:inherit;font-size:12px}
 .bar-search-row input{flex:1}
 #barAbilityList{min-height:130px;max-height:28vh;overflow:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-content:start;gap:5px;padding:3px;scrollbar-width:thin}
 .bar-choice{text-align:left;border:1px solid #3b534a;background:#1b302f;padding:10px;min-height:57px}
