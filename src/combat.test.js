@@ -18,7 +18,7 @@ test('ranged dead zone, facing, and melee reach are enforced',()=>{
   assert.equal(combat.canCast('RaptorStrike',{...player,z:4},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,yaw:0},true),false);
 });
-test('Auto Shot uses the nominal minimum plus target range radius',()=>{
+test('Auto Shot uses the nominal minimum plus target hitbox radius',()=>{
   const combat=new Combat(()=>0.9);
   assert.equal(combat.minRangeFor('AutoShot'),10.8);
   assert.equal(combat.rangeFor('AutoShot'),38);
@@ -211,17 +211,28 @@ test('a shot ready while moving retries at half-second intervals and resumes aut
  assert.ok(Math.abs(c.lastAutoShot-1.5)<1e-8);assert.equal(c.autoShot,true);
 });
 
-test('target range radius changes shooting availability while melee keeps its five-yard boundary',()=>{
+test('target hitbox radius changes shooting availability and melee follows the target hitbox edge',()=>{
  const c=new Combat(()=>.9);
  for(const radius of [0,2.8,5]){
-  c.options.targetRangeRadius=radius;
+  c.options.targetHitboxRadius=radius;
   assert.equal(c.minRangeFor('AutoShot'),8+radius);
   for(const id of ['ArcaneShot','AimedShot','MultiShot','SerpentSting']){
    assert.equal(c.minRangeFor(id),8+radius);
    assert.equal(c.canCast(id,{...player,z:8+radius-.01},true),false);
    assert.equal(c.canCast(id,{...player,z:8+radius},true),true);
   }
-  assert.equal(c.canCast('RaptorStrike',{...player,z:5},true),true);
-  assert.equal(c.canCast('RaptorStrike',{...player,z:5.01},true),false);
+  const melee=5+radius-2.8;
+  assert.equal(c.rangeFor('RaptorStrike'),melee);
+  assert.equal(c.canCast('RaptorStrike',{...player,z:melee},true),true);
+  assert.equal(c.canCast('RaptorStrike',{...player,z:melee+.01},true),false);
  }
+});
+test('larger hitbox extends both weapon swings and dummy sparring',()=>{
+ const small=new Combat(()=>.9),large=new Combat(()=>.9);
+ for(const c of [small,large]){c.autoShot=false;c.options.dualWield=true;c.options.sparring=true}
+ large.options.targetHitboxRadius=5;
+ for(let i=0;i<60;i++)for(const c of [small,large])c.tick(.05,{...player,z:6.5},false);
+ assert.equal(small.previousMelee,0);assert.equal(small.nextOffhand,2.4);assert.equal(small.health,small.maxHealth);
+ assert.ok(large.previousMelee>0);assert.ok(large.nextOffhand>2.4);assert.ok(large.health<large.maxHealth);
+ assert.ok(large.damage>0);
 });

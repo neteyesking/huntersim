@@ -160,3 +160,5 @@
 #releaseUpdate{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:14px;max-width:90vw;padding:12px 16px;border:1px solid #d4b271;border-radius:5px;background:#122e2f;color:#efdfbc;box-shadow:0 5px 25px #0009;font-size:12px}#releaseUpdate button{flex-shrink:0;border:1px solid #bba16e;border-radius:3px;background:#34584a;padding:8px 12px;color:#fff0cd}@media(max-width:650px){#releaseUpdate{flex-direction:column;width:80vw;text-align:center}}
 
 #autoTimerToggle{cursor:pointer;background:#213e37;border:1px solid #8ba47d;border-radius:3px;color:#e9d09a;padding:0;pointer-events:auto}#autoTimerToggle[aria-pressed="false"]{opacity:.45}#autoTimerToggle:hover{border-color:#f0d397}
+
+.range-legend{font-size:10px;line-height:1.5;color:#c3c5a2;border-top:1px solid #52675a55;padding-top:7px;margin-top:7px}

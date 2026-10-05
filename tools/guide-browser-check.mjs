@@ -28,10 +28,10 @@ try{
  assert.equal(await evaluate("document.getElementById('offhandOption').checked"),false);
  assert.ok((await evaluate("document.getElementById('petVitals').textContent")).includes('No active pet'));
  assert.equal(await evaluate("JSON.parse(localStorage.getItem('hunter-talents-v2')).laceratingStrikes"),1);
- await evaluate("document.getElementById('trainingBtn').click();var input=document.getElementById('targetRadiusOption');input.value='5';input.dispatchEvent(new Event('change'))");await wait(100);
+ await evaluate("document.getElementById('trainingBtn').click();var input=document.getElementById('targetHitboxOption');input.value='5';input.dispatchEvent(new Event('change'))");await wait(100);
  assert.ok((await evaluate("document.getElementById('targetRangeNote').textContent")).includes('13.0 yd'));
  assert.equal(await evaluate("document.querySelector('[data-spell=ArcaneShot]').dataset.unavailableReason"),'range');
- await evaluate("var input=document.getElementById('targetRadiusOption');input.value='2.8';input.dispatchEvent(new Event('change'));document.getElementById('trainingClose').click()");await wait(100);
+ await evaluate("var input=document.getElementById('targetHitboxOption');input.value='2.8';input.dispatchEvent(new Event('change'));document.getElementById('trainingClose').click()");await wait(100);
  assert.ok((await evaluate("document.getElementById('targetRangeNote').textContent")).includes('10.8 yd'));
  assert.notEqual(await evaluate("document.querySelector('[data-spell=ArcaneShot]').dataset.unavailableReason"),'range');
  await evaluate("document.getElementById('autoTimerToggle').click()");await wait(100);

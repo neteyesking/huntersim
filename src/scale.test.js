@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {YARDS_PER_UNIT,HUMAN_HEIGHT,HUMAN_RADIUS,HUMAN_COMBAT_REACH,attackRange,centerDistance} from './scale.js';
+import {YARDS_PER_UNIT,HUMAN_HEIGHT,HUMAN_RADIUS,HUMAN_COMBAT_REACH,attackRange,centerDistance,meleeReach} from './scale.js';
 
 test('one scene unit is one yard and both bodies use human proportions',()=>{
  assert.equal(YARDS_PER_UNIT,1);
@@ -18,8 +18,13 @@ test('center distance is measured between the human body origins',()=>{
  assert.equal(centerDistance({x:3,z:4}),5);
 });
 
-test('larger target range radii widen the minimum without changing zero-minimum spells',()=>{
+test('larger target hitbox radii widen the minimum without changing zero-minimum spells',()=>{
  assert.equal(attackRange({minRange:8,maxRange:35},0,5).min,13);
  assert.equal(attackRange({minRange:0,maxRange:100},0,5).min,0);
- assert.equal(attackRange({minRange:0,maxRange:5},0,5).max,5);
+ assert.equal(attackRange({minRange:0,maxRange:5},0,5).max,7.2);
+});
+
+test('melee boundary follows target hitbox edge and preserves the default five-yard reach',()=>{
+ assert.equal(meleeReach(2.8),5);assert.equal(meleeReach(5),7.2);assert.equal(meleeReach(1),3.2);
+ assert.ok(meleeReach(20)>20);
 });
