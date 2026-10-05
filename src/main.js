@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import {Combat, SPELLS, TREES, ACTIONS} from './combat.js';
 import {movementAxes, stepMovement, turnDelta, CameraRig, cameraCommand, bodyHeading, angleDifference, PressGesture} from './movement.js';
 import {createRangeMarkers} from './range-markers.js';
-import {createHunterAvatar} from './hunter-avatar.js';
+import {createHunterAvatar,MELEE_ANIMATION_DURATION} from './hunter-avatar.js';
 import {HUMAN_HEIGHT, HUMAN_RADIUS, combatReach} from './scale.js';
 import {SV_WEAVE,loadTalentBuild,isSurvivalWeave} from './presets.js';
 import {WEAVE_GUIDE} from './weave-guide.js';
@@ -118,15 +118,16 @@ function pickTarget(clientX,clientY){
 }
 const hunterVisual=createHunterAvatar();
 const {group:avatar,upperBody,legL,legR}=hunterVisual;scene.add(avatar);
-const attackMotion={type:null,start:0,id:null};
+const attackMotion={shoot:null,melee:null};
 function animateAttack(dt,moving){
- const age=combat.time-attackMotion.start;
- if(attackMotion.type==='shoot'&&age>.28)attackMotion.type=null;
- if(attackMotion.type==='melee'&&age>.48)attackMotion.type=null;
+ const releaseAge=attackMotion.shoot?combat.time-attackMotion.shoot.start:-1;
+ const meleeAge=attackMotion.melee?combat.time-attackMotion.melee.start:-1;
+ if(releaseAge>.28)attackMotion.shoot=null;
+ if(meleeAge>MELEE_ANIMATION_DURATION)attackMotion.melee=null;
  const rangedCast=combat.cast&&['AimedShot','MultiShot','SniperShot'].includes(combat.cast.id);
  const autoDraw=combat.autoWindupStart!==null?Math.min(1,(combat.time-combat.autoWindupStart)/.5):0;
  const castDraw=rangedCast?Math.min(1,(combat.time-combat.cast.start)/combat.cast.duration):0;
- hunterVisual.update({time:combat.time,dt,moving,airborne:player.height>0,melee:combat.distance(player)<=combat.rangeFor('RaptorStrike'),aiming:combat.autoWindupStart!==null||!!rangedCast,draw:Math.max(autoDraw,castDraw),releaseAge:attackMotion.type==='shoot'?age:-1,meleeAge:attackMotion.type==='melee'?age:-1,ability:attackMotion.id});
+ hunterVisual.update({time:combat.time,dt,moving,airborne:player.height>0,melee:combat.distance(player)<=combat.rangeFor('RaptorStrike'),aiming:combat.autoWindupStart!==null||!!rangedCast,draw:Math.max(autoDraw,castDraw),releaseAge:attackMotion.shoot?releaseAge:-1,meleeAge:attackMotion.melee?meleeAge:-1,ability:(attackMotion.melee||attackMotion.shoot)?.id});
 }
 const capsuleGeometry=new THREE.CapsuleGeometry(HUMAN_RADIUS,HUMAN_HEIGHT-2*HUMAN_RADIUS,4,12);
 const capsuleMaterial=new THREE.MeshBasicMaterial({color:0x6ed5d1,wireframe:true,transparent:true,opacity:.45,depthTest:false});
@@ -278,7 +279,7 @@ $('svPreset').onclick=$('guidePreset').onclick=()=>{
 };
 $('helpBtn').onclick=()=>setModal('helpPanel',true);
 $('helpClose').onclick=$('helpPlay').onclick=()=>setModal('helpPanel',false);
-$('resetBtn').onclick=()=>{combat.reset();player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.type=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
+$('resetBtn').onclick=()=>{combat.reset();player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.shoot=null;attackMotion.melee=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
 $('autoTimerToggle').onclick=$('autoTrackToggle').onclick=()=>$('autoBtn').click();
 $('autoBtn').onclick=()=>{combat.autoShot=!combat.autoShot;showToast('Auto Shot '+(combat.autoShot?'on':'off'))};
 $('hitboxBtn').onclick=()=>{const visible=!targetHitbox.visible;targetHitbox.visible=visible;playerHitbox.visible=visible;$('hitboxBtn').textContent=visible?'Hide hitboxes':'Show hitboxes'};
@@ -459,7 +460,7 @@ function frame(now){
  if(!blocked)combat.tick(dt,player,!remote&&(moving||player.height>0));
  for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i],t=(combat.time-p.start)/p.duration;p.mesh.position.lerpVectors(p.from,p.to,Math.min(1,t));if(t>=1){scene.remove(p.mesh);disposeProjectile(p.mesh);projectiles.splice(i,1)}}
  const attackEvents=combat.visualEvents.splice(0);
- for(const event of attackEvents){attackMotion.type=event.type;attackMotion.start=combat.time;attackMotion.id=event.id}
+ for(const event of attackEvents)attackMotion[event.type]={start:combat.time,id:event.id};
  updateCompanions();
  animateAttack(dt,moving&&!remote);
  for(const event of attackEvents)if(event.type==='shoot')spawnProjectile(event.id);

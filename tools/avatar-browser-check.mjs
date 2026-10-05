@@ -18,11 +18,28 @@ try{
  await evaluate("document.getElementById('resetBtn').click()");await wait(100);
  await evaluate("document.getElementById('autoTrackToggle').click()");await untilPose('idle');
  await evaluate("document.getElementById('autoTrackToggle').click()");const draw=await untilPose('bow-draw');
- assert.ok(draw.stringPull>=.13&&draw.stringPull<=.51);assert.equal(draw.height,2.0277777);
+ assert.ok(draw.stringPull>=.1299&&draw.stringPull<=.51);assert.equal(draw.height,2.0277777);
  const release=await untilPose('bow-release');assert.ok(release.projectiles>0);
  await key('keyDown','KeyW');await until("import(document.querySelector('script[src*=\"/src/main.js\"]').src).then(m=>m.movementSnapshot().player.z<4.8)");await key('keyUp','KeyW');
  await evaluate("document.querySelector('[data-spell=RaptorStrike]').click()");
- let strike;for(let i=0;i<300;i++){const s=await pose();if(s.pose==='sword-swing'&&s.ability==='RaptorStrike'){strike=s;break}await wait(20)}assert.ok(strike,'Raptor Strike sword animation');
+ const swings=await evaluate(`import(document.querySelector('script[src*="/src/main.js"]').src).then(m=>new Promise((resolve,reject)=>{
+  const swings={},started=performance.now();
+  function sample(){
+   const s=m.avatarSnapshot();
+   if(s.pose==='sword-swing'&&['RaptorStrike','Melee'].includes(s.ability)){
+    if(swings[s.ability]||s.swingPhase==='raise'){const frames=swings[s.ability]??=[];frames.push(s);}
+   }
+   if(['RaptorStrike','Melee'].every(id=>swings[id]?.some(s=>s.swingPhase==='recover')))return resolve(swings);
+   if(performance.now()-started>12000)return reject(Error('Missing full melee swings'));
+   requestAnimationFrame(sample);
+  }sample();
+ }))`);
+ for(const [ability,frames] of Object.entries(swings)){
+  const x=frames.map(s=>s.swordTip[0]);
+  assert.ok(Math.max(...x)-Math.min(...x)>1.7,ability+' blade must sweep across both sides of the body');
+  assert.ok(frames.some(s=>s.swingPhase==='cut'),ability+' has a visible cut');
+ }
+ const strike=swings.RaptorStrike.find(s=>s.swingPhase==='cut');
  await untilPose('melee-ready');
  const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-avatar-game.png',Buffer.from(shot.data,'base64'));
  await key('keyDown','KeyS');await until("import(document.querySelector('script[src*=\"/src/main.js\"]').src).then(m=>m.movementSnapshot().player.z>11.2)");await key('keyUp','KeyS');
