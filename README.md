@@ -165,3 +165,9 @@ The Custom tab is the default action bar, with 12 ability slots. Select Edit bar
 Every Hunter ability, including Auto Shot, can be placed on the bar. Talent abilities can be placed before learning them and remain unavailable until learned. Custom slots show the same range, mana, proc, queued attack and cooldown states as the category pages. Keybinds belong to abilities and stay unchanged when slots move; use Keybinds to change them. Category tabs remain available for the full spellbook.
 
 Aspect buttons show the full wrapped name and highlight the active aspect in green. The top-right Active Buffs panel shows the current aspect, temporary hunter buffs, procs and charge counts. Active pet buffs are labelled PET. Countdown values come directly from combat expiry times and pause with the encounter; consumed and expired effects disappear. Target debuffs remain on the target nameplate.
+
+## Settings and saved setups
+
+Open Settings in the top bar. Training options (target reach, armor, type, sparring, regeneration, enrage, stealth and offhand), selected aspect/tracking, pet family/autocast, buff/stat visibility and hitbox visibility now save automatically in localStorage. Existing talent, keybind and custom-bar saves remain compatible. Reloading restores these preferences, and encounter resets retain them.
+
+Give a setup a name and choose Save / update setup to capture these preferences together with talents, keybinds and all 12 custom slots. Select a saved setup to load it or delete it. Loading starts a fresh encounter with the saved configuration; it does not restore health, damage, cooldowns, temporary buffs or a summoned pet. Up to 30 named setups can be kept. Saves belong to the current browser and site address; clearing site data removes them. Storage failures are reported, and current session changes still work.

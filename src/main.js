@@ -13,12 +13,13 @@ import {BINDING_GROUPS, DEFAULT_BINDINGS, eventChord, mouseChord, wheelChord, bi
 import {PET_FAMILIES, RECORDS, changeTalent, validTalents, describe} from './catalog.js';
 import {createBuffBar} from './player-buffs.js';
 import {createCustomBar} from './custom-bar.js';
+import {loadSettings,saveSettings,createSettingsPanel} from './settings.js';
 import './style.css';
 
 const app=document.querySelector('#app');
 app.innerHTML=`
 <div id="scene"></div><div id="targetNameplate" class="target-nameplate" hidden></div><div id="combatText" aria-hidden="true"></div>
-<div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="trainingBtn">Training</button><button id="howToBtn">How to</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
+<div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="settingsBtn">Settings</button><button id="trainingBtn">Training</button><button id="howToBtn">How to</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
 <div class="target-panel" id="targetPanel"><div class="eyebrow">TARGET · TRAINING DUMMY</div><div class="target-title"><strong>Clockwork Sentinel</strong><span id="targetPct">100%</span></div><div class="meter health"><i id="healthFill"></i></div><div class="target-stats"><span id="targetHp">50,000 / 50,000</span><span id="rangeText">18 yd</span></div><div id="targetAuras"></div><div id="rangeLegend" class="range-legend"></div></div>
 <div class="player-panel"><div class="eyebrow">HUNTER · LEVEL 60</div><div class="player-title"><strong>Wayfinder</strong><span id="manaText">3,000 / 3,000</span></div><div class="meter mana"><i id="manaFill"></i></div><div class="player-meta"><span id="aspectText">Aspect of the Hawk</span><span id="rapidText"></span></div><div id="hunterVitals" class="vitals"></div><div id="petVitals" class="vitals"></div><div class="pet-orders"><button id="petAttack">Pet attack</button><button id="petFollow">Follow</button><button id="petStay">Stay</button></div><div class="scale-note">1 grid square = 1 yd · human body 2.03 yd tall · target combat reach adjustable in Training</div></div>
 <div class="telemetry-column"><section id="buffBar" class="buff-bar" aria-label="Active buffs"></section><div class="status-card"><div class="eyebrow">ENCOUNTER</div><div class="statline"><span>Duration</span><strong id="timeText">0:00</strong></div><div class="statline"><span>Damage</span><strong id="damageText">0</strong></div><div class="statline"><span>DPS</span><strong id="dpsText">0</strong></div><div class="statline"><span>Position</span><strong id="positionText">18 yd</strong></div><div class="statline"><span>Auto Shot</span><strong id="autoText">ON</strong></div><button class="inline" id="autoBtn"><span id="autoBtnLabel">Stop Auto Shot</span> <kbd id="autoKey">T</kbd></button><button class="inline" id="hitboxBtn">Show hitboxes</button></div>
@@ -40,6 +41,8 @@ app.innerHTML=`
 
 const $=id=>document.getElementById(id);
 const combat=new Combat();
+let preferences=loadSettings(window.localStorage);
+combat.options={...preferences.training};combat.petFamily=preferences.petFamily;combat.petAutocast=preferences.petAutocast;combat.aspect=preferences.aspect;combat.tracking=preferences.tracking;
 const drawBuffBar=createBuffBar($('buffBar'));
 for(const [tab,body,otherTab,otherBody] of [['weavingTab','weavingStats','combatLogTab','combatLogBody'],['combatLogTab','combatLogBody','weavingTab','weavingStats']])$(tab).onclick=()=>{$(body).classList.remove('hidden');$(otherBody).classList.add('hidden');$(tab).classList.add('selected');$(otherTab).classList.remove('selected')};
 combat.talents=loadTalentBuild(window.localStorage);
@@ -159,7 +162,7 @@ const gestures=new Map();
 const avatarMaterials=[];avatar.traverse(object=>{if(object.isMesh||object.isLine){object.material=object.material.clone();avatarMaterials.push({material:object.material,opacity:object.material.opacity});}});
 let lastX=0,lastY=0,autorun=false,toastUntil=0;
 function showToast(text){$('toast').textContent=text;$('toast').classList.add('visible');toastUntil=combat.time+1.7}
-function fire(id){const before=combat.events[0];if(!combat.castSpell(id,player)&&combat.events[0]!==before)showToast(combat.events[0].message)}
+function fire(id){const before=combat.events[0];if(!combat.castSpell(id,player)&&combat.events[0]!==before)showToast(combat.events[0].message);if(id.startsWith('Aspect')||id.startsWith('Track'))persistPreferences()}
 const buttons=new Map();
 let actionPage='Custom';
 for(const name of ['Custom',...new Set(ACTIONS.map(a=>a.category))]){
@@ -264,7 +267,7 @@ function command(id){
  if(id==='loadSvWeave'){$('svPreset').click();return}
  if(id==='controls'){$('helpBtn').click();return}
  if(id==='keybinds'){$('keybindBtn').click();return}
- if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);setModal('howToPanel',false);setModal('barEditor',false);return}
+ if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);setModal('howToPanel',false);setModal('barEditor',false);setModal('settingsPanel',false);return}
  if(id==='resetEncounter'){$('resetBtn').click();return}
  if(id==='clearTalents'){$('clearTalents').click();return}
  if(id==='zoomIn')rig.zoom(1);
@@ -281,17 +284,17 @@ $('howToBtn').onclick=()=>setModal('howToPanel',true);
 $('howToClose').onclick=$('howToPlay').onclick=()=>setModal('howToPanel',false);
 $('svPreset').onclick=$('guidePreset').onclick=()=>{
  combat.talents={...SV_WEAVE};combat.options.dualWield=false;$('offhandOption').checked=false;
- $('resetBtn').click();player.z=combat.minRangeFor('AutoShot')+.25;lastHudRange=player.z;saveTalents();renderTalents();
+ $('resetBtn').click();player.z=combat.minRangeFor('AutoShot')+.25;lastHudRange=player.z;persistPreferences();saveTalents();renderTalents();
  setModal('howToPanel',false);setModal('talentPanel',false);showToast('SV Weave loaded · 0/20/31 · no pet');
 };
 $('helpBtn').onclick=()=>setModal('helpPanel',true);
 $('helpClose').onclick=$('helpPlay').onclick=()=>setModal('helpPanel',false);
-$('resetBtn').onclick=()=>{combat.reset();player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.shoot=null;attackMotion.melee=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
+$('resetBtn').onclick=()=>{combat.reset();combat.aspect=preferences.aspect;combat.tracking=preferences.tracking;player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.shoot=null;attackMotion.melee=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
 $('autoTimerToggle').onclick=$('autoTrackToggle').onclick=()=>$('autoBtn').click();
 $('autoBtn').onclick=()=>{combat.autoShot=!combat.autoShot;showToast('Auto Shot '+(combat.autoShot?'on':'off'))};
-$('hitboxBtn').onclick=()=>{const visible=!targetHitbox.visible;targetHitbox.visible=visible;playerHitbox.visible=visible;$('hitboxBtn').textContent=visible?'Hide hitboxes':'Show hitboxes'};
+$('hitboxBtn').onclick=()=>{const visible=!targetHitbox.visible;targetHitbox.visible=visible;playerHitbox.visible=visible;$('hitboxBtn').textContent=visible?'Hide hitboxes':'Show hitboxes';preferences.hitboxes=visible;persistPreferences()};
 $('clearTalents').onclick=()=>{combat.talents={};saveTalents();renderTalents()};
-function saveTalents(){try{localStorage.setItem('hunter-talents-v2',JSON.stringify(combat.talents))}catch{}}
+function saveTalents(){try{localStorage.setItem('hunter-talents-v2',JSON.stringify(combat.talents));return true}catch{return false}}
 function editTalent(field,delta){
  const next=changeTalent(combat.talents,field,delta);
  if(!next){showToast('Check talent tier, prerequisite and 51 point limit');return}
@@ -331,7 +334,7 @@ window.addEventListener('keydown',e=>{
  if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;
  const chord=eventChord(e),id=actionForChord(bindings,chord);
  if(id||['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
- const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor'].some(name=>!$(name).classList.contains('hidden'));
+ const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel'].some(name=>!$(name).classList.contains('hidden'));
  if(panelOpen){
   if(id==='closePanel'||e.code==='Escape')command('closePanel');
   else if(id==='clearTalents'&&!$('talentPanel').classList.contains('hidden'))command(id);
@@ -354,7 +357,7 @@ document.addEventListener('wheel',e=>{
 },{capture:true,passive:false});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('mousedown',e=>{
- if(['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor'].some(name=>!$(name).classList.contains('hidden')))return;
+ if(['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel'].some(name=>!$(name).classList.contains('hidden')))return;
  if(e.button===0)gestures.set(e.button,new PressGesture(performance.now()/1000,e.clientX,e.clientY));
  pressed.add('Mouse'+e.button);updateMouseState();
  const id=actionForChord(bindings,mouseChord(e));
@@ -441,7 +444,7 @@ function updateCombatText(){
 let last=performance.now();
 function frame(now){
  const dt=Math.min(.05,(now-last)/1000);last=now;
- const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor'].some(name=>!$(name).classList.contains('hidden'));
+ const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel'].some(name=>!$(name).classList.contains('hidden'));
  keys.clear();
  for(const [id,key] of [['forward','w'],['backward','s'],['turnLeft','a'],['turnRight','d'],['strafeLeft','q'],['strafeRight','e']])if(held(bindings,id,pressed))keys.add(key);
  const axes=blocked||combat.health<=0?{forward:0,side:0,turn:0}:movementAxes(keys,mouse,autorun);
@@ -626,17 +629,17 @@ $('trainingBtn').onclick=()=>{
  for(const [id,key] of [['sparringOption','sparring'],['enrageOption','enraged'],['hiddenOption','hidden'],['offhandOption','dualWield'],['regenOption','targetRegen']])$(id).checked=combat.options[key];
  $('targetReachOption').value=combat.options.targetCombatReach;
  $('armorOption').value=combat.options.targetArmor;$('targetTypeOption').value=combat.options.targetType;$('petFamilyOption').value=combat.petFamily;
- renderPetSkills();setModal('trainingPanel',true);
+ $('petAutoOption').checked=combat.petAutocast;renderPetSkills();setModal('trainingPanel',true);
 };
 $('trainingClose').onclick=()=>setModal('trainingPanel',false);
-for(const [id,key] of [['sparringOption','sparring'],['enrageOption','enraged'],['hiddenOption','hidden'],['offhandOption','dualWield'],['regenOption','targetRegen']])$(id).onchange=e=>{combat.options[key]=e.target.checked};
+for(const [id,key] of [['sparringOption','sparring'],['enrageOption','enraged'],['hiddenOption','hidden'],['offhandOption','dualWield'],['regenOption','targetRegen']])$(id).onchange=e=>{combat.options[key]=e.target.checked;persistPreferences()};
 for(const type of ['Humanoid','Beast','Demon','Dragonkin','Elemental','Giant','Undead']){const option=document.createElement('option');option.textContent=type;$('targetTypeOption').appendChild(option)}
-$('armorOption').onchange=e=>{combat.options.targetArmor=Math.max(0,Math.min(20000,Number(e.target.value)||0))};
-$('targetReachOption').onchange=e=>{const value=Number(e.target.value);combat.options.targetCombatReach=combatReach(value);e.target.value=combat.options.targetCombatReach};
-$('targetTypeOption').onchange=e=>{combat.options.targetType=e.target.value};
+$('armorOption').onchange=e=>{combat.options.targetArmor=Math.max(0,Math.min(20000,Number(e.target.value)||0));e.target.value=combat.options.targetArmor;persistPreferences()};
+$('targetReachOption').onchange=e=>{const value=Number(e.target.value);combat.options.targetCombatReach=combatReach(value);e.target.value=combat.options.targetCombatReach;persistPreferences()};
+$('targetTypeOption').onchange=e=>{combat.options.targetType=e.target.value;persistPreferences()};
 for(const [id,family] of Object.entries(PET_FAMILIES)){const option=document.createElement('option');option.value=id;option.textContent=family.name;$('petFamilyOption').appendChild(option)}
-$('petFamilyOption').onchange=e=>{combat.petFamily=e.target.value;combat.pet=null;renderPetSkills()};
-$('petAutoOption').onchange=e=>{if(combat.pet)combat.pet.autocast=e.target.checked};
+$('petFamilyOption').onchange=e=>{combat.petFamily=e.target.value;combat.pet=null;renderPetSkills();persistPreferences()};
+$('petAutoOption').onchange=e=>{combat.petAutocast=e.target.checked;if(combat.pet)combat.pet.autocast=e.target.checked;persistPreferences()};
 function renderPetSkills(){
  $('petSkills').replaceChildren();
  for(const id of PET_FAMILIES[combat.petFamily].abilities){const button=document.createElement('button');button.textContent=RECORDS[id].name;button.title=describe(RECORDS[id]);button.onclick=()=>{setModal('trainingPanel',false);if(!combat.petActive())showToast('Call your pet first');else combat.petAbility(id,combat.petDamageMultiplier(),Math.hypot(combat.pet.x,combat.pet.z)<=5)};$('petSkills').appendChild(button)}
@@ -649,6 +652,26 @@ $('respawnBtn').onclick=()=>{combat.respawnTarget();setModal('trainingPanel',fal
 $('natureHitBtn').onclick=()=>{combat.receiveNatureDamage(300);showToast('Nature damage applied')};
 $('endViewBtn').onclick=()=>{delete combat.auras.eyes;delete combat.auras.eagleEye;delete combat.auras.feign;setModal('trainingPanel',false)};
 for(const [id,order] of [['petAttack','attack'],['petFollow','follow'],['petStay','stay']])$(id).onclick=()=>{if(!combat.petCommand(order))showToast('Call your pet first')};
+
+function currentSettings(){return {...preferences,training:{...combat.options},aspect:combat.aspect,tracking:combat.tracking,petFamily:combat.petFamily,petAutocast:combat.petAutocast,hitboxes:targetHitbox.visible}}
+function persistPreferences(){preferences=currentSettings();const saved=saveSettings(window.localStorage,preferences);if(!saved)showToast('Settings apply for this session; browser storage is unavailable');return saved}
+function applyPreferences(value){
+ preferences=value;combat.options={...value.training};combat.petFamily=value.petFamily;combat.petAutocast=value.petAutocast;combat.aspect=value.aspect;combat.tracking=value.tracking;
+ if(combat.pet)combat.pet.autocast=value.petAutocast;
+ $('buffBar').hidden=!value.showBuffs;document.querySelector('.telemetry-column').dataset.showStats=String(value.showStats);
+ targetHitbox.visible=playerHitbox.visible=value.hitboxes;$('hitboxBtn').textContent=value.hitboxes?'Hide hitboxes':'Show hitboxes';
+}
+const settingsPanel=createSettingsPanel({app,storage:window.localStorage,setModal,getSettings:currentSettings,
+ changeSettings:value=>{applyPreferences(value);return persistPreferences()},
+ getSetup:()=>({settings:currentSettings(),talents:{...combat.talents},bindings:{...bindings},slots:customBar.snapshot()}),
+ applySetup:setup=>{
+  $('resetBtn').click();applyPreferences(setup.settings);combat.pet=null;combat.talents={...setup.talents};bindings={...setup.bindings};
+  const results=[persistPreferences(),saveTalents(),saveBindings(window.localStorage,bindings),customBar.restore(setup.slots)];
+  selectPage('Custom');renderTalents();refreshBindingLabels();return results.every(Boolean);
+ }
+});
+$('settingsBtn').onclick=()=>settingsPanel.open();
+applyPreferences(preferences);
 requestAnimationFrame(frame);
 
 export function movementSnapshot() {

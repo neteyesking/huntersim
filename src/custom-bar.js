@@ -70,5 +70,5 @@ export function createCustomBar({app,storage,createButton,setModal,getBindings,g
  $('clearBarSlot').onclick=()=>{slots[selected]=null;changed()};
  $('resetBarSlots').onclick=()=>{slots=[...DEFAULT_SLOTS];changed()};
  renderBar();
- return {open,host,buttonsFor:id=>byId.get(id)||[],refreshBindings,updateAuto(on){for(const b of byId.get('AutoShot')||[]){b.classList.toggle('queued',on);b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',(on?'Stop':'Start')+' Auto Shot');b.title=(on?'Stop':'Start')+' Auto Shot';}}};
+ return {open,host,snapshot:()=>[...slots],restore(value){slots=normalizeSlots(value);renderBar();try{storage.setItem(BAR_STORAGE_KEY,JSON.stringify(slots));return true}catch{return false}},buttonsFor:id=>byId.get(id)||[],refreshBindings,updateAuto(on){for(const b of byId.get('AutoShot')||[]){b.classList.toggle('queued',on);b.setAttribute('aria-pressed',String(on));b.setAttribute('aria-label',(on?'Stop':'Start')+' Auto Shot');b.title=(on?'Stop':'Start')+' Auto Shot';}}};
 }

@@ -219,3 +219,19 @@
 .buff-tile[data-kind=proc] .buff-name{color:#ffe8ad}
 .buff-tile.expiring .buff-time{color:#ffbd87}
 @media(max-width:650px){.buff-bar{padding:7px}.buff-list{max-height:165px}.buff-name{font-size:10px}.buff-tile{padding:5px;gap:4px}.buff-symbol{flex-basis:18px}}
+
+.settings-card{width:min(610px,94vw);max-height:90vh;overflow:auto;padding:24px;background:#142a2d;border:1px solid #728b73;box-shadow:0 25px 70px #0009;scrollbar-width:thin}
+.settings-card h2{font:27px Georgia,serif;margin:8px 0}
+.settings-card p{color:#b8cbbd;font-size:12px;line-height:1.5}
+.settings-card fieldset{border:1px solid #426052;margin:18px 0;padding:14px}
+.settings-card legend{color:#e8ce96;font-size:12px;padding:0 7px}
+.settings-card label{display:flex;gap:9px;align-items:center;color:#d3dfd3;font-size:12px;margin:10px 0}
+.settings-card .settings-field{display:grid;gap:7px;margin:14px 0 9px}
+.settings-card input[type=text],.settings-card input:not([type]),.settings-card select{width:100%;padding:9px;border:1px solid #58735f;background:#0c1d20;color:#eee;font:inherit}
+.settings-links{display:flex;gap:7px;flex-wrap:wrap}
+.settings-card button:disabled{opacity:.4;cursor:default}
+#setupSummary{font-size:11px;line-height:1.5;color:#a7c1aa;margin-top:12px}
+#settingsStatus{color:#efd295;min-height:18px}
+.settings-card>small{font-size:10px;color:#91a99a}
+.telemetry-column[data-show-stats=false]>.status-card,.telemetry-column[data-show-stats=false]>.combat-log{display:none}
+@media(max-width:750px){.settings-card{padding:18px}.settings-card h2{font-size:23px}.top-actions{gap:3px}.top-actions button{padding:6px 4px;font-size:9px}}

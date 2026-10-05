@@ -245,7 +245,7 @@ export class Combat {
  summonPet(p){
   if(this.pet?.health>0){this.pet.active=true;this.pet.x=p.x+1;this.pet.z=p.z;return}
   const family=PET_FAMILIES[this.petFamily],health=2200*(1+this.pct('enduranceTraining'))*(1+(family.passive.effects[2]?.value||0)/100);
-  this.pet={active:true,family:this.petFamily,health,maxHealth:health,focus:100,happiness:1.25,x:p.x+1,z:p.z,order:'follow',next:0,gcd:0,cooldowns:{},autocast:true,frenzyUntil:0,threat:0};
+  this.pet={active:true,family:this.petFamily,health,maxHealth:health,focus:100,happiness:1.25,x:p.x+1,z:p.z,order:'follow',next:0,gcd:0,cooldowns:{},autocast:this.petAutocast??true,frenzyUntil:0,threat:0};
  }
  receiveNatureDamage(amount){
   const resistance=this.aspect==='AspectOfTheWild'?SPELLS.AspectOfTheWild.effects[0].value:0;

@@ -10,10 +10,11 @@ const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pendi
 const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value};
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const until=async expression=>{for(let i=0;i<100;i++){const value=await evaluate(expression);if(value)return value;await wait(100)}throw Error('Timed out: '+expression)};
-let previous;
+let previous,previousSettings;
 try{
  await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:game});
- await until("!!document.querySelector('[data-buff=AspectOfTheHawk]')");
+ await until("!!document.getElementById('settingsBtn')");
+ previousSettings=await evaluate("localStorage.getItem('hunter-settings-v1')");await evaluate("localStorage.removeItem('hunter-settings-v1')");await send('Page.reload');await wait(400);await until("!!document.querySelector('[data-buff=AspectOfTheHawk]')");
  previous=await evaluate("localStorage.getItem('hunter-action-bar-v1')");
  await evaluate("document.getElementById('editBarBtn').click();document.getElementById('resetBarSlots').click();document.getElementById('barEditorDone').click();document.getElementById('resetBtn').click()");
  await wait(100);
@@ -36,9 +37,10 @@ try{
  await send('Emulation.setDeviceMetricsOverride',{width:720,height:900,deviceScaleFactor:1,mobile:false});await wait(100);
  assert.ok(await evaluate("document.querySelector('#customActionBar [data-spell=AspectOfTheBeast] .action-name').scrollHeight<=document.querySelector('#customActionBar [data-spell=AspectOfTheBeast] .action-name').clientHeight"),'Aspect name fits narrow layout');
  await evaluate("document.getElementById('resetBtn').click()");await until("!document.querySelector('[data-buff=rapidFire]')");
- assert.ok(await evaluate("!!document.querySelector('[data-buff=AspectOfTheHawk]')"));
+ assert.ok(await evaluate("!!document.querySelector('[data-buff=AspectOfTheBeast]')"));
  assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',fullAspectNames:true,activeAspect:true,buffTimers:true,pause:true,reset:true,runtimeErrors:errors.length}));
 }finally{
+ if(previousSettings!==undefined)await evaluate(previousSettings===null?"localStorage.removeItem('hunter-settings-v1')":"localStorage.setItem('hunter-settings-v1',"+JSON.stringify(previousSettings)+")");
  if(previous!==undefined)await evaluate(previous===null?"localStorage.removeItem('hunter-action-bar-v1')":"localStorage.setItem('hunter-action-bar-v1',"+JSON.stringify(previous)+")");
  ws.close();await fetch(debug+'/json/close/'+tab.id);
 }
