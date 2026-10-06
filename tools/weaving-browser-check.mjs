@@ -20,7 +20,7 @@ try{
  await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:gameUrl});await until(async()=>await evaluate("!!document.getElementById('autoTrackToggle')"));await wait(500);await reset();
  await until(async()=>(await state()).stats.shots>=1);
  await key('keyDown','KeyW');await until(async()=>(await movement()).player.z<=4.7);await key('keyUp','KeyW');
- await evaluate("document.getElementById('meleeAttackBtn').click()");
+ await evaluate("document.querySelector('#actionBar [data-spell=RaptorStrike]').click()");
  await until(async()=>(await state()).stats.active?.swings>=1);
  assert.equal((await state()).timer.progress,0);
  assert.equal(await evaluate("document.getElementById('autoBar').style.width"),'0%');

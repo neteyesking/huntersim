@@ -17,7 +17,7 @@ export function playerBuffs(combat){
  };
  if(combat.aspect)add(combat.aspect,SPELLS[combat.aspect]?.name||combat.aspect,Infinity,'aspect');
  for(const [id,[name,kind]] of Object.entries(hunterEffects))add(id,name,combat.auras[id],kind,id==='sniper'?combat.auras.sniperCharges||1:1);
- add('mongooseReady','Mongoose Bite ready',combat.mongooseUntil,'proc');
+ add('mongooseReady',combat.mongooseSource==='Expose Prey'?'Expose Prey · Mongoose Bite':'Mongoose Bite ready',combat.mongooseUntil,'proc');
  if(combat.talents.counterattack)add('counterReady','Counterattack ready',combat.counterUntil,'proc');
  if(combat.petActive()){
   for(const [id,name] of [['bestialWrath','Bestial Wrath'],['intimidation','Intimidation'],['feeding','Feed Pet']])add(id,name,combat.auras[id],'buff',1,'Pet');

@@ -21,7 +21,7 @@ export const BINDING_GROUPS = [
     ['spell:AspectOfTheBeast','Aspect of the Beast','Equal'],
   ]},
   {name:'Interface and encounter', items:[
-    ['toggleAuto','Toggle Auto Shot','KeyT'],['toggleMelee','Toggle melee attack','KeyR'],['weaveCombo','Raptor Strike + Strider Kick macro','Shift+KeyR'],['toggleHitboxes','Toggle hitboxes','KeyH'],
+    ['toggleAuto','Toggle Auto Shot','KeyT'],['weaveCombo','Raptor Strike + Strider Kick macro','Shift+KeyR'],['toggleHitboxes','Toggle hitboxes','KeyH'],
     ['howTo','Open weaving guide','F2'],['loadSvWeave','Load SV Weave and reset encounter',''],
     ['talents','Open talents','KeyK'],['controls','Open controls','F1'],
     ['keybinds','Open keybinds','KeyB'],['closePanel','Close panel','Escape'],
@@ -71,10 +71,17 @@ export function actionForChord(bindings,chord){
   if(!chord)return null;
   return BINDING_ITEMS.find(([id])=>bindings[id]===chord)?.[0]||null;
 }
+const MODIFIER_FALLBACK_ACTIONS=new Set(['forward','backward','turnLeft','turnRight','strafeLeft','strafeRight','jump','autorun','walk','cameraOrbit','cameraSteer','zoomIn','zoomOut']);
+export function inputAction(bindings,chord){
+  const exact=actionForChord(bindings,chord);
+  if(exact||!chord)return exact;
+  const base=actionForChord(bindings,chord.split('+').at(-1));
+  return MODIFIER_FALLBACK_ACTIONS.has(base)?base:null;
+}
 export function held(bindings,id,pressed){
   const chord=bindings[id];
   if(!chord)return false;
-  const parts=chord.split('+'),code=parts.pop();
+  const code=chord.split('+').at(-1);
   if(code.startsWith('Wheel')||!pressed.has(code))return false;
   const active=[
     pressed.has('ControlLeft')||pressed.has('ControlRight')?'Ctrl':null,
@@ -82,7 +89,7 @@ export function held(bindings,id,pressed){
     pressed.has('ShiftLeft')||pressed.has('ShiftRight')?'Shift':null,
     pressed.has('MetaLeft')||pressed.has('MetaRight')?'Meta':null,
   ].filter(Boolean);
-  return active.join('+')===parts.join('+');
+  return inputAction(bindings,[...active,code].join('+'))===id;
 }
 export function rebind(bindings,id,chord){
   if(!(id in DEFAULT_BINDINGS)||!validBinding(chord))throw new Error('Invalid keybind');

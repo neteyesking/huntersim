@@ -90,8 +90,10 @@ test('trap arming, shared cooldown, Entrapment and Clever Traps work together',(
  c.rollDamage(10,'AutoShot',{landed:true});assert.equal(c.debuffs.freeze,undefined);
 });
 test('channels tick during casting and movement stops subsequent ticks',()=>{
- const c=quiet();c.castSpell('Volley',ranged);advance(c,2.1);assert.equal(c.damage,224);
- c.tick(.05,ranged,true);assert.equal(c.cast,null);advance(c,5);assert.equal(c.damage,224);
+ const c=quiet();c.castSpell('Volley',ranged);advance(c,2.1);
+ const volleyDamage=()=>c.meter.snapshot(c.time).rows.find(r=>r.id==='Volley').damage;
+ assert.equal(volleyDamage(),224);
+ c.tick(.05,ranged,true);assert.equal(c.cast,null);advance(c,5);assert.equal(volleyDamage(),224);
  const mend=quiet();mend.summonPet(ranged);mend.pet.health=100;mend.castSpell('MendPet',ranged);advance(mend,5.1);assert.equal(mend.pet.health,1325);
 });
 test('pet talent bonuses, focus regeneration and Lone Wolf respond to pet presence',()=>{

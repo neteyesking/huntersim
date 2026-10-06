@@ -279,3 +279,11 @@
 .telemetry-column>.dps-meter{position:static;width:100%;margin-top:auto;max-height:68%;overflow-y:auto;flex-shrink:0;scrollbar-width:thin}
 .dps-meter .combat-log{max-height:135px}
 @media(max-width:750px){.telemetry-column{bottom:265px;max-height:none}.telemetry-column>.dps-meter{max-height:70%}.telemetry-column>.buff-bar{max-height:27%}}
+
+.action.proc-active,#customActionBar .action.proc-active{border-color:#ffd569;box-shadow:0 0 9px #f7ac36a0,inset 0 0 12px #e8aa4b35}
+.action.proc-active::before{inset:1px;border:2px solid #ffe6a1;opacity:1;box-shadow:inset 0 0 7px #ffc94f;animation:proc-glow 1.1s ease-in-out infinite alternate;z-index:4}
+.action.proc-active::after{content:attr(data-proc-time);position:absolute;left:4px;top:4px;padding:1px 2px;color:#ffe69b;background:#27200aeb;font-size:10px;line-height:12px;font-weight:bold;text-shadow:1px 1px #000;z-index:5;pointer-events:none}
+.action.proc-ready,#customActionBar .action.proc-ready{border-color:#fff0aa;box-shadow:0 0 14px #ffcc59c0,inset 0 0 16px #ffe48d55}
+.action.proc-ready .action-glyph{color:#fff0a5;text-shadow:0 0 12px #ffd24e}
+@keyframes proc-glow{from{opacity:.55}to{opacity:1;box-shadow:inset 0 0 12px #ffd573}}
+@media(prefers-reduced-motion:reduce){.action.proc-active::before{animation:none}}

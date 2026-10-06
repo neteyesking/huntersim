@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+const debug=process.env.BROWSER_DEBUG_URL,game=process.env.GAME_URL;
+if(!debug||!game)throw Error('Set BROWSER_DEBUG_URL and GAME_URL before running browser checks');
+const tab=await(await fetch(debug+'/json/new?about:blank',{method:'PUT'})).json();
+const ws=new WebSocket(tab.webSocketDebuggerUrl);await new Promise(r=>ws.onopen=r);
+let id=0;const pending=new Map(),errors=[];
+ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')errors.push(m.params);if(m.id){const p=pending.get(m.id);pending.delete(m.id);m.error?p.reject(m.error):p.resolve(m.result)}};
+const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}))});
+const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value};
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const until=async expression=>{for(let i=0;i<100;i++){const value=await evaluate(expression);if(value)return value;await wait(100)}throw Error('Timed out: '+expression+' '+JSON.stringify(await evaluate("({log:document.getElementById('logRows')?.textContent,auto:document.getElementById('autoText')?.textContent,mark:document.getElementById('targetAuras')?.textContent})")))};
+const keys=['hunter-settings-v1','hunter-training-keybinds-v1','hunter-talents-v2','hunter-action-bar-v1'];let previous;
+const click=id=>evaluate('document.getElementById('+JSON.stringify(id)+').click()');
+const key=(type,code,modifiers=0)=>send('Input.dispatchKeyEvent',{type,code,key:code==='ShiftLeft'?'Shift':code.replace('Key','').toLowerCase(),modifiers});
+const movement=()=>evaluate("import(document.querySelector('script[src*=\"/src/main.js\"]').src).then(m=>m.movementSnapshot())");
+const range=()=>evaluate("parseFloat(document.getElementById('positionText').textContent)");
+try{
+ await send('Runtime.enable');await send('Page.enable');await send('Page.addScriptToEvaluateOnNewDocument',{source:'Math.random=()=>0.9'});
+ await send('Page.bringToFront');await send('Page.navigate',{url:game});await until("!!document.getElementById('settingsBtn')");
+ previous=await evaluate('Object.fromEntries('+JSON.stringify(keys)+'.map(k=>[k,localStorage.getItem(k)]))');await evaluate(JSON.stringify(keys)+'.forEach(k=>localStorage.removeItem(k))');await send('Page.reload');await wait(500);await until("!!document.getElementById('svPreset')");
+ await click('svPreset');await wait(600);
+ await key('keyDown','KeyW');await until("parseFloat(document.getElementById('positionText').textContent)<6.8");await key('keyUp','KeyW');await wait(100);
+ assert.ok(await range()>5);
+ const button=()=>evaluate("(()=>{const b=document.querySelector('#customActionBar [data-spell=RaptorStrike]');return {queued:b.classList.contains('queued'),disabled:b.getAttribute('aria-disabled'),title:b.title,cd:b.querySelector('.action-cooldown').textContent}})()");
+ assert.equal((await button()).disabled,'false');assert.ok((await button()).title.includes('READY TO QUEUE'));
+ await key('keyDown','Digit7');await key('keyUp','Digit7');await until("document.querySelector('#customActionBar [data-spell=RaptorStrike]').classList.contains('queued')");
+ await key('keyDown','Digit7');await key('keyUp','Digit7');await until("!document.querySelector('#customActionBar [data-spell=RaptorStrike]').classList.contains('queued')");
+ await click('weaveComboBtn');await until("document.querySelector('#customActionBar [data-spell=RaptorStrike]').classList.contains('queued')");
+ await wait(700);assert.equal((await button()).cd,'');assert.equal(await evaluate("document.querySelector('#customActionBar [data-spell=StriderKick] .action-cooldown').textContent"),'');
+ assert.equal(await evaluate("!!document.querySelector('[data-damage-source=RaptorStrike]')"),false);
+ assert.equal(await evaluate("document.getElementById('autoTrackToggle').getAttribute('aria-pressed')"),'true');
+ await key('keyDown','KeyW');await until("parseFloat(document.getElementById('positionText').textContent)<4.7");await key('keyUp','KeyW');
+ await until("!!document.querySelector('[data-damage-source=RaptorStrike]')");assert.equal((await button()).queued,false);assert.notEqual((await button()).cd,'');
+ assert.equal(await evaluate("document.querySelector('#customActionBar [data-spell=StriderKick] .action-cooldown').textContent"),'');
+ await click('weaveComboBtn');await until("!!document.querySelector('#customActionBar [data-spell=StriderKick] .action-cooldown').textContent");
+ assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',earlyQueue:true,cancel:true,macroQueue:true,noEarlyDamage:true,meleeStrike:true,kickRequiresMelee:true,runtimeErrors:errors.length}));
+}finally{
+ await key('keyUp','KeyW');
+ if(previous)await evaluate('Object.entries('+JSON.stringify(previous)+').forEach(([k,v])=>v===null?localStorage.removeItem(k):localStorage.setItem(k,v))');
+ ws.close();await fetch(debug+'/json/close/'+tab.id);
+}

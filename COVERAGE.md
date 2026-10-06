@@ -101,7 +101,7 @@ Rank curves are read directly: for example, Barrage is 3/7/10, Ferocity is 2/4/6
 | Predator's Edge | Melee critical damage and optional offhand damage. |
 | Counterattack | Unlocks a parry-gated weapon strike and root. |
 | Resourcefulness | Melee/trap mana discount and critical-hit mana regeneration proc. |
-| Expose Prey | Landed attacks against a marked target can enable Mongoose Bite. |
+| Expose Prey | Landed damaging hunter melee/ranged attacks against Hunter’s Mark roll 5%/10% to enable Mongoose Bite for five seconds. Pet/guardian damage, traps and periodic ticks do not roll it. |
 | Survivalist's Discipline | Trap and Deterrence cooldown reduction. |
 | Strider Kick | Unlocks weapon damage and a short movement-speed increase. |
 | Lightning Reflexes | Agility multiplier feeding attack power and critical chance. |

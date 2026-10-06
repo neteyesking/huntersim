@@ -32,10 +32,10 @@ try{
  await until("import('/src/main.js').then(m=>m.movementSnapshot().player.z<7.7)");
  await send('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});await wait(100);
  const z=await evaluate("import('/src/main.js').then(m=>m.movementSnapshot().player.z)");assert.ok(z>5&&z<7.84);
- assert.notEqual(await evaluate("document.querySelector('[data-spell=RaptorStrike]').dataset.unavailableReason"),'range');
+ assert.notEqual(await evaluate("document.querySelector('[data-spell=WingClip]').dataset.unavailableReason"),'range');
  assert.equal(await evaluate("document.querySelector('[data-spell=ArcaneShot]').dataset.unavailableReason"),'range');
  await setRadius(1.5);
- assert.equal(await evaluate("document.querySelector('[data-spell=RaptorStrike]').dataset.unavailableReason"),'range');
+ assert.equal(await evaluate("document.querySelector('[data-spell=WingClip]').dataset.unavailableReason"),'range');
  assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',sizes:results,meleePosition:z,runtimeErrors:errors.length}));
 }finally{
  await send('Input.dispatchKeyEvent',{type:'keyUp',code:'KeyW',key:'w'});

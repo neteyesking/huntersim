@@ -14,7 +14,7 @@ test('ranged dead zone, facing, and melee reach are enforced',()=>{
   const combat=new Combat(()=>0.9);
   assert.equal(combat.canCast('ArcaneShot',player,true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,z:7},true),false);
-  assert.equal(combat.canCast('RaptorStrike',{...player,z:7},true),false);
+  assert.equal(combat.canCast('RaptorStrike',{...player,z:7.01},true),false);
   assert.equal(combat.canCast('RaptorStrike',{...player,z:4},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,yaw:0},true),false);
 });
@@ -27,7 +27,7 @@ test('Auto Shot uses the nominal minimum plus both combat reaches',()=>{
   assert.equal(combat.canCast('ArcaneShot',{...player,z:38},true),true);
   assert.equal(combat.canCast('ArcaneShot',{...player,z:38.1},true),false);
   assert.equal(combat.canCast('RaptorStrike',{...player,z:5},true),true);
-  assert.equal(combat.canCast('RaptorStrike',{...player,z:5.1},true),false);  const below=new Combat(()=>0.9),atEdge=new Combat(()=>0.9);
+  assert.equal(combat.canCast('WingClip',{...player,z:5.1},true),false);  const below=new Combat(()=>0.9),atEdge=new Combat(()=>0.9);
   for(let i=0;i<68;i++){
     below.tick(0.05,{...player,z:10.99},false);
     atEdge.tick(0.05,{...player,z:11},false);
@@ -226,7 +226,7 @@ test('combat reach changes both ranged boundaries and preserves the melee floor'
   const melee=Math.max(5,1.5+radius+4/3);
   assert.equal(c.rangeFor('RaptorStrike'),melee);
   assert.equal(c.canCast('RaptorStrike',{...player,z:melee},true),true);
-  assert.equal(c.canCast('RaptorStrike',{...player,z:melee+.01},true),false);
+  assert.equal(c.canCast('WingClip',{...player,z:melee+.01},true),false);
  }
 });
 test('larger combat reach extends both weapon swings and dummy sparring',()=>{

@@ -62,7 +62,7 @@ test('white and queued Raptor Strike swing attempts contribute to weave stats',(
 });
 test('turning Auto Shot off cancels pending measurements and reset clears all stats',()=>{
  const c=new Combat(()=>.9);nextShot(c);c.tick(.01,melee,false);
- c.autoShot=false;advance(c,8,ranged);assert.equal(c.expectedAutoShotAt,null);assert.equal(c.weaving.active,null);
+ c.setAutoShot(false);advance(c,8,ranged);assert.equal(c.expectedAutoShotAt,null);assert.equal(c.weaving.active,null);
  c.autoShot=true;nextShot(c);assert.equal(c.weaving.intervals,0);assert.equal(c.weaving.weaves,0);
  c.reset();assert.equal(c.weaving.shots,0);assert.equal(c.weaving.totalDelay,0);assert.equal(c.weaving.windupClips,0);near(c.autoTimer().progress,0);
 });
@@ -84,4 +84,18 @@ test('manual re-enable after melee resumes one 3.0 second cycle and never adds a
  advance(c,1,ranged,true);advance(c,1.49);assert.equal(c.autoWindupStart,null);
  advance(c,.01);near(c.autoWindupStart-start,2.5);
  advance(c,.5);near(c.lastAutoShot-start,3);assert.equal(c.autoShot,true);
+});
+
+test('returning to ranged distance starts the melee reset even while facing away',()=>{
+ const c=new Combat(()=>.9,{rangedWeaponSpeed:3});nextShot(c);advance(c,2);c.tick(.01,melee,false);assert.equal(c.autoResetByMelee,true);
+ c.setAutoShot(true);c.tick(.01,{...ranged,yaw:0},true);const start=c.time;
+ assert.equal(c.autoResetByMelee,false);near(c.autoSwingStart,start);
+ advance(c,2,{...ranged,yaw:0});assert.equal(c.autoWindupStart,null);
+ advance(c,.5,ranged);near(c.autoWindupStart,start+2.5);advance(c,.5,ranged);near(c.lastAutoShot,start+3);
+});
+test('stopping Auto Shot before a pending melee reset cannot strand its timer at infinity',()=>{
+ const c=new Combat(()=>.9,{rangedWeaponSpeed:3});nextShot(c);advance(c,2);c.tick(.01,melee,false);
+ c.setAutoShot(true);advance(c,.2,{...ranged,z:8},true);assert.equal(c.nextAuto,Infinity);
+ c.setAutoShot(false);advance(c,.2,{...ranged,z:8},true);c.setAutoShot(true);c.tick(.01,ranged,false);const start=c.time;
+ assert.ok(Number.isFinite(c.nextAuto));near(c.nextAuto,start+2.5);nextShot(c);near(c.lastAutoShot,start+3);
 });

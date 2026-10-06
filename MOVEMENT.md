@@ -24,6 +24,7 @@ The browser faces +Z at yaw zero. Browser pitch is positive downward. Preserve t
 ## Input behavior
 
 - A/D turn; while right mouse is held they strafe. Q/E always strafe.
+- Shift, Ctrl, Alt and Meta preserve unmodified movement, jump and camera controls when that exact modified chord has no binding. Explicit modified bindings take precedence on their own key; unrelated held controls continue. Ability and macro inputs require their assigned chord.
 - Left mouse orbits independently. Right mouse aligns hunter facing even if no mouse-motion event arrives.
 - Both buttons run forward and steer. Entering that chord cancels autorun and pending clicks. Releasing one continues the remaining button's operation.
 - W/S keydown cancels autorun. Jumping and losing focus do not cancel autorun. Losing focus clears held keys and mouse buttons.

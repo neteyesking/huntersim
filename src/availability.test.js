@@ -12,7 +12,7 @@ test('range availability follows melee, dead zone and ranged boundaries',()=>{
  }
  assert.equal(c.abilityState('RaptorStrike',far).code,'range');
  assert.equal(c.abilityState('RaptorStrike',near).usable,true);
- for(const id of ['RaptorStrike','ArcaneShot'])assert.equal(c.abilityState(id,{...near,z:6}).code,'range');
+ for(const id of ['RaptorStrike','ArcaneShot'])assert.equal(c.abilityState(id,{...near,z:8}).code,'range');
  assert.equal(c.abilityState('HuntersMark',near).usable,true);
  assert.equal(c.abilityState('AspectOfTheHawk',near).usable,true);
 });

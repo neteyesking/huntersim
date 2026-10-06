@@ -4,12 +4,13 @@ import {attackRange,centerDistance,DEFAULT_TARGET_COMBAT_REACH} from './scale.js
 import {SPELLS,TREES,ACTIONS,RECORDS,PET_FAMILIES,MELEE,TRAPS,CHANNELS,TALENT_GATES,isShot,isHostile,talentValue} from './catalog.js';
 export {SPELLS,TREES,ACTIONS};
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
+const RAPTOR_QUEUE_BUFFER=2;
 const rangedWeapon=new Set(['AutoShot','AimedShot','MultiShot','SniperShot','ScatterShot']);
 const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin',TrackElementals:'Elemental',TrackGiants:'Giant',TrackHumanoids:'Humanoid',TrackUndead:'Undead'};
 export class Combat {
  constructor(random=Math.random,{rangedWeaponSpeed=2.8}={}){this.rangedWeaponSpeed=rangedWeaponSpeed;this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
  reset(){
-  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,meleeAttack:false,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
+  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,meleeAttack:true,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,autoStoppedInMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,mongooseSource:null,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
   this.weaving=new WeavingStats();this.meter=new DamageMeter();
   this.log('Training begins.');
  }
@@ -20,6 +21,7 @@ export class Combat {
  distance(p){return centerDistance(p)}
  facing(p){return Math.cos(Math.atan2(-p.x,-p.z)-p.yaw)>=0}
  rangeFor(id){return attackRange(SPELLS[id],isShot(id)?(id==='SniperShot'?0:this.value('hawkEye'))+(this.auras.sniper&&id!=='SniperShot'?10:0):0,this.options.targetCombatReach).max}
+ raptorQueueRange(){return this.rangeFor('RaptorStrike')+RAPTOR_QUEUE_BUFFER}
  minRangeFor(id){return attackRange(SPELLS[id],0,this.options.targetCombatReach).min}
  petActive(){return !!this.pet?.active&&this.pet.health>0}
  stats(){
@@ -50,7 +52,7 @@ export class Combat {
  abilityState(id,p){
   const s=SPELLS[id],queued=id==='RaptorStrike'&&this.raptorQueued;
   const procUntil=id==='MongooseBite'?this.mongooseUntil:id==='Counterattack'?this.counterUntil:0;
-  const state={usable:true,reason:'',code:'ready',queued,procRemaining:Math.max(0,procUntil-this.time)};
+  const state={usable:true,reason:'',code:'ready',queued,queueOnly:id==='RaptorStrike'&&this.distance(p)>this.rangeFor(id),procRemaining:Math.max(0,procUntil-this.time),procSource:id==='MongooseBite'?this.mongooseSource:null};
   const blocked=(code,reason)=>({...state,usable:false,code,reason});
   if(!s)return blocked('unknown','Unavailable');
   if(queued)return state;
@@ -61,7 +63,8 @@ export class Combat {
   if(isHostile(id)&&s.maxRange>0){
    const range=this.distance(p);
    if(range<this.minRangeFor(id)-1e-8)return blocked('range','Too close: requires at least '+this.minRangeFor(id)+' yd');
-   if(range>this.rangeFor(id)+1e-8)return blocked('range','Out of range: maximum '+this.rangeFor(id)+' yd');
+   const max=id==='RaptorStrike'?this.raptorQueueRange():this.rangeFor(id);
+   if(range>max+1e-8)return blocked('range','Out of range: maximum '+max+' yd'+(id==='RaptorStrike'?' to queue':''));
    if(!this.facing(p))return blocked('facing','Face the target');
   }
   if(['MendPet','FeedPet','DismissPet','EyesOfTheBeast','BestialWrath','Intimidation'].includes(id)&&!this.petActive())return blocked('pet','Requires a living pet');
@@ -88,8 +91,16 @@ export class Combat {
  castSpell(id,p){
   if(!this.canCast(id,p))return false;
   if(id==='AutoShot'){this.setAutoShot(!this.autoShot);return true}
-  if(id==='RaptorStrike'){this.raptorQueued=!this.raptorQueued;if(this.raptorQueued)this.startMelee(p);this.log(this.raptorQueued?'Raptor Strike queued':'Raptor Strike cancelled');return true}
+  if(id==='RaptorStrike'){
+   this.raptorQueued=!this.raptorQueued;
+   if(this.raptorQueued){
+    this.meleeAttack=true;
+    if(this.distance(p)<=this.rangeFor(id))this.startMelee(p);
+   }
+   this.log(this.raptorQueued?'Raptor Strike queued':'Raptor Strike cancelled');return true;
+  }
   if(MELEE.has(id))this.startMelee(p);
+  if(!this.autoShot&&(isShot(id)||id==='Volley'))this.setAutoShot(true);
   delete this.auras.feign;delete this.auras.eagleEye;delete this.auras.eyes;
   this.spend(id);
   const s=SPELLS[id];
@@ -181,7 +192,10 @@ export class Combat {
   this.log((crit?'Critical ':'')+(SPELLS[id]?.name||id)+' '+amount,crit?'crit':'damage');
   this.textEvents.push({text:String(amount),kind:crit?'crit':'damage',id});
   if(!periodic&&!pet&&!guardian){
-   if(this.auras.mark&&this.random()<this.pct('exposePrey'))this.mongooseUntil=this.time+5;
+   if(amount>0&&(melee||isShot(id))&&this.auras.mark>this.time&&this.rank('exposePrey')&&this.random()<this.pct('exposePrey')){
+    this.mongooseUntil=this.time+RECORDS.DefensiveStateTriggered.durationMs/1000;this.mongooseSource='Expose Prey';
+    this.log('Expose Prey: Mongoose Bite available for 5s','buff');
+   }
    if(crit&&this.random()<this.rank('resourcefulness')*.3)this.buff('resourceful',30);
    const proc=this.random()<this.pct('deadlyAspects');
    if(proc&&id==='AutoShot'&&['AspectOfTheHawk','AspectOfTheFalcon'].includes(this.aspect))this.buff('quickShots',12);
@@ -333,7 +347,7 @@ export class Combat {
   const parry=petTarget?0:.05+this.pct('deflection')+(this.auras.deterrence?.25:0);
   const roll=this.random(),miss=.05+(this.sting?.id==='ScorpidSting'?.02:0);
   if(roll<miss)return;
-  if(roll<miss+dodge){if(!petTarget)this.mongooseUntil=this.time+5;this.log('Dodged incoming attack');return}
+  if(roll<miss+dodge){if(!petTarget){this.mongooseUntil=this.time+RECORDS.DefensiveStateTriggered.durationMs/1000;this.mongooseSource='Dodge'}this.log('Dodged incoming attack');return}
   if(roll<miss+dodge+parry){this.counterUntil=this.time+5;this.log('Parried incoming attack');return}
   let damage=140*(this.options.enraged?1.5:1)*(this.debuffs.petWeaken?.8:1);
   if(petTarget){damage/=1+.15*(1+this.pct('enduranceTraining'));if(this.pet.defenseUntil>this.time)damage*=.5;this.pet.health=Math.max(0,this.pet.health-damage)}
@@ -390,25 +404,27 @@ export class Combat {
   for(const hawk of this.hawks)if(this.time<hawk.until&&this.time>=hawk.next&&this.targetHealth>0){hawk.next=this.time+2/this.meleeHaste();this.rollDamage((45+252*2/14)*(1+this.pct('unleashedFury'))*this.damageMultiplier('Hawk'),'Hawk',{guardian:true})}
   this.hawks=this.hawks.filter(h=>h.until>this.time);
   if(this.time>=this.nextIncoming){this.nextIncoming=this.time+2;this.incoming(p)}
-  const autoTracking=(this.autoShot||this.meleeAttack||this.autoResetByMelee)&&this.health>0&&this.targetHealth>0&&p.targeted!==false&&!this.auras.feign&&!this.auras.eyes&&!this.auras.eagleEye;
+  if(this.autoShot&&this.distance(p)<=this.rangeFor('RaptorStrike')){
+   this.autoShot=false;this.autoStoppedInMelee=true;
+   if(this.autoWindupStart!==null)this.weaving.windupClips++;
+   this.autoWindupStart=null;this.autoWindupEnd=0;
+  }
+  const autoTracking=(this.autoShot||this.autoResetByMelee||this.autoStoppedInMelee)&&this.health>0&&this.targetHealth>0&&p.targeted!==false&&!this.auras.feign&&!this.auras.eyes&&!this.auras.eagleEye;
   this.weaving.position(this.time,this.distance(p),this.minRangeFor('AutoShot'),this.rangeFor('AutoShot'),autoTracking);
   if(!autoTracking)this.expectedAutoShotAt=null;
   if(this.health<=0||this.auras.feign||this.auras.eyes||this.auras.eagleEye)return;
   this.tickWeapons(p,moving);
  }
  setAutoShot(enabled){
-  this.autoShot=enabled;this.autoWindupStart=null;this.autoWindupEnd=0;
-  if(enabled){this.meleeAttack=false;this.raptorQueued=false}
-  else{this.autoResetByMelee=false;this.expectedAutoShotAt=null;this.weaving.active=null;this.weaving.wasInside=null}
+  this.autoShot=enabled;this.autoStoppedInMelee=false;this.autoWindupStart=null;this.autoWindupEnd=0;
+  if(enabled){this.meleeAttack=true;this.raptorQueued=false}
+  else{this.expectedAutoShotAt=null;this.weaving.active=null;this.weaving.wasInside=null}
  }
  startMelee(p){
   if(this.health<=0||p.targeted===false||this.targetHealth<=0||!this.targetVisible())return false;
+  this.autoStoppedInMelee ||= this.autoShot;
   this.meleeAttack=true;this.autoShot=false;this.autoWindupStart=null;this.autoWindupEnd=0;
   delete this.auras.feign;delete this.auras.eagleEye;delete this.auras.eyes;return true;
- }
- toggleMelee(p){
-  if(this.meleeAttack){this.meleeAttack=false;this.raptorQueued=false;this.autoResetByMelee=false;this.expectedAutoShotAt=null;return true}
-  return this.startMelee(p);
  }
  weaveCombo(p){
   let used=this.raptorQueued;
@@ -436,7 +452,8 @@ export class Combat {
  }
  tickWeapons(player,moving){
     const range=this.distance(player);
-    const ranged=this.targetVisible()&&player.targeted!==false&&range>=this.minRangeFor('AutoShot')&&range<=this.rangeFor('AutoShot')&&this.facing(player);
+    const ranged=this.targetVisible()&&player.targeted!==false&&range>=this.minRangeFor('AutoShot')&&range<=this.rangeFor('AutoShot');
+    const canShoot=ranged&&this.facing(player);
     if(moving&&this.autoWindupStart!==null){
       this.weaving.windupClips++;
       this.autoWindupStart=null;
@@ -446,7 +463,7 @@ export class Combat {
     if(this.autoShot&&this.targetHealth>0&&ranged&&this.autoResetByMelee){
       this.restartAutoSwing();this.autoResetByMelee=false;
     }
-    if(!this.autoShot||this.targetHealth<=0||!ranged){
+    if(!this.autoShot||this.targetHealth<=0||!canShoot){
       if(this.autoShot&&this.targetHealth>0&&this.autoWindupStart!==null)this.weaving.windupClips++;
       this.autoWindupStart=null;
       this.autoWindupEnd=0;
