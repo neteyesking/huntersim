@@ -234,7 +234,7 @@ test('larger combat reach extends both weapon swings and dummy sparring',()=>{
  for(const c of [small,large]){c.startMelee(player);c.options.dualWield=true;c.options.sparring=true}
  large.options.targetCombatReach=5;
  for(let i=0;i<60;i++)for(const c of [small,large])c.tick(.05,{...player,z:6.5},false);
- assert.equal(small.previousMelee,0);assert.equal(small.nextOffhand,2.4);assert.equal(small.health,small.maxHealth);
+ assert.equal(small.previousMelee,0);assert.equal(small.nextOffhand,small.loadout.offHand.speed);assert.equal(small.health,small.maxHealth);
  assert.ok(large.previousMelee>0);assert.ok(large.nextOffhand>2.4);assert.ok(large.health<large.maxHealth);
  assert.ok(large.damage>0);
 });

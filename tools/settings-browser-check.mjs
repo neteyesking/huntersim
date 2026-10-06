@@ -18,7 +18,7 @@ try{
  await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:game});await until("!!document.getElementById('settingsBtn')");
  previous=await evaluate('Object.fromEntries('+JSON.stringify(keys)+'.map(k=>[k,localStorage.getItem(k)]))');
  await evaluate(JSON.stringify(keys)+'.forEach(k=>localStorage.removeItem(k))');await send('Page.reload');await wait(400);await until("!!document.getElementById('settingsBtn')");
- await click('trainingBtn');await change('targetReachOption',4);await change('armorOption',3500);await change('offhandOption',true);await change('petFamilyOption','Wolf');await change('petAutoOption',false);await click('trainingClose');
+ await click('trainingBtn');await change('targetReachOption',4);await change('armorOption',3500);await change('petFamilyOption','Wolf');await change('petAutoOption',false);await click('trainingClose');await click('equipmentBtn');await evaluate("document.querySelector('[data-field=mode]').value='dualWield';document.querySelector('[data-field=mode]').dispatchEvent(new Event('change'))");await click('equipmentApply');await click('equipmentClose');
  await evaluate("document.querySelector('#customActionBar [data-spell=AspectOfTheBeast]').click()");await until("!!document.querySelector('[data-buff=AspectOfTheBeast]')");
  await click('clearTalents');await click('editBarBtn');await evaluate("document.querySelector('[data-choice=RapidFire]').click()");await click('barEditorDone');
  await click('keybindBtn');await evaluate("Array.from(document.querySelectorAll('.binding-row')).find(n=>n.firstElementChild.textContent==='Move forward').querySelector('button').click()");

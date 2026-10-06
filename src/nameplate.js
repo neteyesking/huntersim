@@ -28,7 +28,8 @@ export function createNameplate(host,onSelect){
   host.style.left=x+'px';host.style.top=y+'px';host.classList.toggle('selected',selected);
   const hp=Math.max(0,Math.min(1,combat.targetHealth/combat.targetMaxHealth));
   health.style.width=hp*100+'%';percent.textContent=Math.ceil(hp*100)+'%';
-  button.title='Clockwork Sentinel · Level 60 · '+Math.ceil(combat.targetHealth).toLocaleString()+' / '+combat.targetMaxHealth.toLocaleString()+' health';
+  host.querySelector('.plate-level').textContent=combat.loadout.target.level;
+  button.title='Clockwork Sentinel · Level '+combat.loadout.target.level+' · '+Math.ceil(combat.targetHealth).toLocaleString()+' / '+combat.targetMaxHealth.toLocaleString()+' health';
   const active=new Set(auras.map(a=>a.id));
   for(const [id,node] of nodes)if(!active.has(id)){node.remove();nodes.delete(id)}
   for(const aura of auras){

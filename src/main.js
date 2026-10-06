@@ -1,3 +1,4 @@
+import {createEquipmentPanel} from './equipment-panel.js';
 document.documentElement.dataset.build=typeof __HUNTER_BUILD_ID__==='undefined'?'development':__HUNTER_BUILD_ID__;
 import * as THREE from 'three';
 import {Combat, SPELLS, TREES, ACTIONS} from './combat.js';
@@ -21,7 +22,7 @@ import './style.css';
 const app=document.querySelector('#app');
 app.innerHTML=`
 <div id="scene"></div><div id="targetNameplate" class="target-nameplate" hidden></div><div id="combatText" aria-hidden="true"></div>
-<div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="settingsBtn">Settings</button><button id="trainingBtn">Training</button><button id="howToBtn">How to</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
+<div class="topbar"><div class="brand"><span class="brand-mark">◆</span><div><strong>HUNTER</strong><small>TRAINING GROUND · FOREVER</small></div></div><div class="top-actions"><button id="equipmentBtn">Stats &amp; weapons</button><button id="settingsBtn">Settings</button><button id="trainingBtn">Training</button><button id="howToBtn">How to</button><button id="helpBtn">Controls</button><button id="keybindBtn">Keybinds</button><button id="talentBtn">Talents <span id="pointsBadge">0/51</span></button><button id="resetBtn">Reset encounter</button></div></div>
 <div class="target-panel" id="targetPanel"><div class="eyebrow">TARGET · TRAINING DUMMY</div><div class="target-title"><strong>Clockwork Sentinel</strong><span id="targetPct">100%</span></div><div class="meter health"><i id="healthFill"></i></div><div class="target-stats"><span id="targetHp">50,000 / 50,000</span><span id="rangeText">18 yd</span></div><div id="targetAuras"></div><div id="rangeLegend" class="range-legend"></div></div>
 <div class="player-panel"><div class="eyebrow">HUNTER · LEVEL 60</div><div class="player-title"><strong>Wayfinder</strong><span id="manaText">3,000 / 3,000</span></div><div class="meter mana"><i id="manaFill"></i></div><div class="player-meta"><span id="aspectText">Aspect of the Hawk</span><span id="rapidText"></span></div><div id="hunterVitals" class="vitals"></div><div id="petVitals" class="vitals"></div><div class="pet-orders"><button id="petAttack">Pet attack</button><button id="petFollow">Follow</button><button id="petStay">Stay</button></div><div class="scale-note">1 grid square = 1 yd · human body 2.03 yd tall · target combat reach adjustable in Training</div></div>
 <div class="telemetry-column"><section id="buffBar" class="buff-bar" aria-label="Active buffs"></section><div class="status-card"><div class="eyebrow">ENCOUNTER</div><div class="statline"><span>Duration</span><strong id="timeText">0:00</strong></div><div class="statline"><span>Damage</span><strong id="damageText">0</strong></div><div class="statline"><span>DPS</span><strong id="dpsText">0</strong></div><div class="statline"><span>Position</span><strong id="positionText">18 yd</strong></div><div class="statline"><span>Auto Shot</span><strong id="autoText">ON</strong></div><button class="inline" id="autoBtn"><span id="autoBtnLabel">Stop Auto Shot</span> <kbd id="autoKey">T</kbd></button><button class="inline" id="hitboxBtn">Show hitboxes</button></div>
@@ -36,7 +37,7 @@ app.innerHTML=`
 <div class="statline" title="Auto Shot windups interrupted by movement, facing, or range loss"><span>Interrupted windups</span><strong id="windupClips">0</strong></div>
 <div id="weaveSession" class="weave-session">Shoot, weave in, then return.</div></div><div id="combatLogBody" class="hidden"><div id="logRows"></div></div></div></div>
 <div class="reticle"><div class="reticle-ring"></div><span id="reticleText">TARGET LOCKED</span></div>
-<div class="bottom"><div id="weaveStrip" class="weave-strip"><span class="weave-icon">➶</span><div class="weave-field"><i id="weaveFill"></i><span id="weaveZone">RANGED</span><b id="weaveCue">WAIT</b></div><span class="weave-icon melee-icon">⚔</span></div><div class="timer-bars"><div class="timer-row auto-row"><button class="timer-icon" id="autoTimerToggle" aria-label="Toggle Auto Shot">➶</button><button type="button" id="autoTrackToggle" class="timer-track auto-track" aria-label="Toggle Auto Shot"><i id="autoBar"></i><em id="multiTick" class="timer-tick multi-tick" title="Multi-Shot cast plus windup"></em><em id="windupTick" class="timer-tick windup-tick" title="Auto Shot windup begins"></em><span class="bar-title" id="autoTrackLabel">AUTO ON · STOP</span><span class="bar-delay" id="autoDelay">+0.00</span></button><b id="autoBarText">0.5s</b></div><div class="timer-row windup-row"><span>WINDUP</span><div class="timer-track windup-track"><i id="windupBar"></i></div><b id="windupBarText">WAITING</b></div><div class="timer-row melee-row"><span class="timer-icon melee-icon">⚔</span><div class="timer-track melee-track"><i id="meleeBar"></i></div><b id="meleeBarText">2.4s</b></div></div><div id="castWrap"><div id="castLabel"></div><div class="cast-track"><i id="castFill"></i><i id="castWindupFill"></i><em id="castBoundary"></em></div></div><div class="attack-controls"><button id="weaveComboBtn">Raptor + Kick</button></div><div id="spellTabs" class="spell-tabs"></div><div id="actionBar"></div><div class="hint" id="controlHint"></div></div>
+<div class="bottom"><div id="weaveStrip" class="weave-strip"><span class="weave-icon">➶</span><div class="weave-field"><i id="weaveFill"></i><span id="weaveZone">RANGED</span><b id="weaveCue">WAIT</b></div><span class="weave-icon melee-icon">⚔</span></div><div class="timer-bars"><div class="timer-row auto-row"><button class="timer-icon" id="autoTimerToggle" aria-label="Toggle Auto Shot">➶</button><button type="button" id="autoTrackToggle" class="timer-track auto-track" aria-label="Toggle Auto Shot"><i id="autoBar"></i><em id="multiTick" class="timer-tick multi-tick" title="Multi-Shot cast plus windup"></em><em id="windupTick" class="timer-tick windup-tick" title="Auto Shot windup begins"></em><span class="bar-title" id="autoTrackLabel">AUTO ON · STOP</span><span class="bar-delay" id="autoDelay">+0.00</span></button><b id="autoBarText">0.5s</b></div><div class="timer-row windup-row"><span>WINDUP</span><div class="timer-track windup-track"><i id="windupBar"></i></div><b id="windupBarText">WAITING</b></div><div class="timer-row melee-row"><span class="timer-icon melee-icon">⚔</span><div class="timer-track melee-track"><i id="meleeBar"></i></div><b id="meleeBarText">2.4s</b></div><div class="timer-row melee-row" id="offhandRow" hidden><span class="timer-icon melee-icon">OH</span><div class="timer-track melee-track"><i id="offhandBar"></i></div><b id="offhandBarText">OFF</b></div></div><div id="castWrap"><div id="castLabel"></div><div class="cast-track"><i id="castFill"></i><i id="castWindupFill"></i><em id="castBoundary"></em></div></div><div class="attack-controls"><button id="weaveComboBtn">Raptor + Kick</button></div><div id="spellTabs" class="spell-tabs"></div><div id="actionBar"></div><div class="hint" id="controlHint"></div></div>
 <div id="toast"></div>
 <div id="talentPanel" class="drawer hidden"><div class="drawer-head"><div><div class="eyebrow">BUILD YOUR HUNTER</div><h2>Talents <span id="talentPoints">0 / 51</span></h2></div><button class="close" id="talentClose">×</button></div><p class="drawer-intro">All 51 talents use Forever rank data. Left click to learn; right click to refund. Tier requirements, prerequisites and the 51 point budget are enforced. Builds save in this browser.</p><div class="preset-controls"><button class="inline" id="svPreset">Load SV Weave &amp; reset</button><span id="buildLabel"></span></div><div id="talentTrees"></div><button class="inline" id="clearTalents">Clear talents</button></div>
 <div id="helpPanel" class="modal hidden"><div class="help-card"><button class="close" id="helpClose">×</button><div class="eyebrow">FIELD GUIDE</div><h2>Hunter controls</h2><p>Left click the dummy to target it; left click empty ground to clear the target. Move and face the stationary dummy. Auto Shot uses its nominal range plus both combat reaches: 11–38 yd with default human reach. Melee reaches 5 yd by default and extends with larger combat reach. Adjust Target combat reach in Training; the colored ground zones update. Face the target and keep enough mana. Moving during a cast interrupts it.</p><div class="help-grid" id="helpGrid"></div><button class="inline" id="helpBindings">Edit keybinds</button><button id="helpPlay">Enter the ground</button></div></div><div id="keybindPanel" class="modal hidden"><div class="keybind-card"><div class="drawer-head"><div><div class="eyebrow">CUSTOMIZE CONTROLS</div><h2>Keybinds</h2></div><button class="close" id="keybindClose">×</button></div><p>Click a binding, then press a key, mouse button or wheel direction. Backspace clears it. Escape cancels capture.</p><div id="bindingConflict" class="binding-conflict hidden"></div><div id="bindingGroups"></div><div class="keybind-actions"><button class="inline" id="restoreBindings">Restore defaults</button><button class="inline" id="keybindDone">Done</button></div></div></div>`;
@@ -53,7 +54,7 @@ for(const [tab,body,otherTab,otherBody] of [['weavingTab','weavingStats','combat
 combat.talents=loadTalentBuild(window.localStorage);
 const howTo=document.createElement('div');howTo.id='howToPanel';howTo.className='modal hidden';howTo.innerHTML=WEAVE_GUIDE;app.appendChild(howTo);
 const training=document.createElement('div');training.id='trainingPanel';training.className='modal hidden';
-training.innerHTML='<div class="help-card training-card"><button class="close" id="trainingClose">×</button><div class="eyebrow">ENCOUNTER LAB</div><h2>Training settings</h2><p>Single dummy, fixed level 60 training equipment. Optional sparring enables incoming attacks inside the current melee boundary so you can practice defenses and pet threat.</p><label><input id="sparringOption" type="checkbox"> Dummy sparring</label><label><input id="enrageOption" type="checkbox"> Target enraged</label><label><input id="hiddenOption" type="checkbox"> Target stealthed</label><label><input id="offhandOption" type="checkbox"> Equip training offhand</label><label><input id="regenOption" type="checkbox"> Target health regeneration</label><label>Target combat reach (yd) <input id="targetReachOption" type="number" min="0" max="20" step="0.1" value="1.5"></label><p class="training-note" id="targetRangeNote"></p><label>Target armor <input id="armorOption" type="number" min="0" max="20000" step="500" value="0"></label><label>Target type <select id="targetTypeOption"></select></label><label>Pet family <select id="petFamilyOption"></select></label><label><input id="petAutoOption" type="checkbox" checked> Pet autocast</label><div id="petSkills" class="pet-skills"></div><div class="training-actions"><button id="callPetBtn">Call pet</button><button id="petHurtBtn">Wound pet</button><button id="petDebuffBtn">Poison pet</button><button id="petStunBtn">Stun pet</button><button id="natureHitBtn">Nature damage</button><button id="respawnBtn">Restore target</button><button id="revivePetBtn">Revive pet</button><button id="endViewBtn">End remote view / feign</button></div><p class="training-note">Pet family abilities and utility effects are training approximations. Multi-Shot and area effects hit the single dummy. Lacerate and Falcon are supplemental data records; live availability is unverified.</p></div>';
+training.innerHTML='<div class="help-card training-card"><button class="close" id="trainingClose">×</button><div class="eyebrow">ENCOUNTER LAB</div><h2>Training settings</h2><p>Single dummy, level 60 hunter. Configure equipment in Stats &amp; weapons. Optional sparring enables incoming attacks inside the current melee boundary so you can practice defenses and pet threat.</p><label><input id="sparringOption" type="checkbox"> Dummy sparring</label><label><input id="enrageOption" type="checkbox"> Target enraged</label><label><input id="hiddenOption" type="checkbox"> Target stealthed</label><button id="trainingEquipmentBtn" class="inline">Stats &amp; weapons</button><label><input id="regenOption" type="checkbox"> Target health regeneration</label><label>Target combat reach (yd) <input id="targetReachOption" type="number" min="0" max="20" step="0.1" value="1.5"></label><p class="training-note" id="targetRangeNote"></p><label>Target armor <input id="armorOption" type="number" min="0" max="20000" step="500" value="0"></label><label>Target type <select id="targetTypeOption"></select></label><label>Pet family <select id="petFamilyOption"></select></label><label><input id="petAutoOption" type="checkbox" checked> Pet autocast</label><div id="petSkills" class="pet-skills"></div><div class="training-actions"><button id="callPetBtn">Call pet</button><button id="petHurtBtn">Wound pet</button><button id="petDebuffBtn">Poison pet</button><button id="petStunBtn">Stun pet</button><button id="natureHitBtn">Nature damage</button><button id="respawnBtn">Restore target</button><button id="revivePetBtn">Revive pet</button><button id="endViewBtn">End remote view / feign</button></div><p class="training-note">Pet family abilities and utility effects are training approximations. Multi-Shot and area effects hit the single dummy. Lacerate and Falcon are supplemental data records; live availability is unverified.</p></div>';
 app.appendChild(training);
 const player={x:0,z:18,yaw:Math.PI,height:0,jumpVelocity:0,horizX:0,horizZ:0,arcDirsSet:false,targeted:true};
 let jumpRequested=false,walking=false,modelYaw=Math.PI;
@@ -129,7 +130,7 @@ function pickTarget(clientX,clientY){
 }
 const hunterVisual=createHunterAvatar();
 const {group:avatar,upperBody,legL,legR}=hunterVisual;scene.add(avatar);
-const attackMotion={shoot:null,melee:null};
+const attackMotion={shoot:null,melee:null,offhand:null};
 function animateAttack(dt,moving){
  const releaseAge=attackMotion.shoot?combat.time-attackMotion.shoot.start:-1;
  const meleeAge=attackMotion.melee?combat.time-attackMotion.melee.start:-1;
@@ -138,7 +139,7 @@ function animateAttack(dt,moving){
  const rangedCast=combat.cast&&['AimedShot','MultiShot','SniperShot'].includes(combat.cast.id);
  const autoDraw=combat.autoWindupStart!==null?Math.min(1,(combat.time-combat.autoWindupStart)/.5):0;
  const castDraw=rangedCast?Math.min(1,(combat.time-combat.cast.start)/combat.cast.duration):0;
- hunterVisual.update({time:combat.time,dt,moving,airborne:player.height>0,melee:combat.distance(player)<=combat.rangeFor('RaptorStrike'),aiming:combat.autoWindupStart!==null||!!rangedCast,draw:Math.max(autoDraw,castDraw),releaseAge:attackMotion.shoot?releaseAge:-1,meleeAge:attackMotion.melee?meleeAge:-1,ability:(attackMotion.melee||attackMotion.shoot)?.id});
+ hunterVisual.update({dualWield:combat.options.dualWield,offhandAge:attackMotion.offhand?combat.time-attackMotion.offhand.start:-1,time:combat.time,dt,moving,airborne:player.height>0,melee:combat.distance(player)<=combat.rangeFor('RaptorStrike'),aiming:combat.autoWindupStart!==null||!!rangedCast,draw:Math.max(autoDraw,castDraw),releaseAge:attackMotion.shoot?releaseAge:-1,meleeAge:attackMotion.melee?meleeAge:-1,ability:(attackMotion.melee||attackMotion.shoot)?.id});
 }
 const capsuleGeometry=new THREE.CapsuleGeometry(HUMAN_RADIUS,HUMAN_HEIGHT-2*HUMAN_RADIUS,4,12);
 const capsuleMaterial=new THREE.MeshBasicMaterial({color:0x6ed5d1,wireframe:true,transparent:true,opacity:.45,depthTest:false});
@@ -272,8 +273,9 @@ function command(id){
  if(id==='howTo'){$('howToBtn').click();return}
  if(id==='loadSvWeave'){$('svPreset').click();return}
  if(id==='controls'){$('helpBtn').click();return}
+ if(id==='equipment'){$('equipmentBtn').click();return}
  if(id==='keybinds'){$('keybindBtn').click();return}
- if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);setModal('howToPanel',false);setModal('barEditor',false);setModal('settingsPanel',false);return}
+ if(id==='closePanel'){setModal('talentPanel',false);setModal('helpPanel',false);setModal('keybindPanel',false);setModal('trainingPanel',false);setModal('howToPanel',false);setModal('barEditor',false);setModal('settingsPanel',false);setModal('equipmentPanel',false);return}
  if(id==='resetEncounter'){$('resetBtn').click();return}
  if(id==='clearTalents'){$('clearTalents').click();return}
  if(id==='zoomIn')rig.zoom(1);
@@ -289,13 +291,13 @@ $('talentClose').onclick=()=>setModal('talentPanel',false);
 $('howToBtn').onclick=()=>setModal('howToPanel',true);
 $('howToClose').onclick=$('howToPlay').onclick=()=>setModal('howToPanel',false);
 $('svPreset').onclick=$('guidePreset').onclick=()=>{
- combat.talents={...SV_WEAVE};combat.options.dualWield=false;$('offhandOption').checked=false;
+ combat.talents={...SV_WEAVE};
  $('resetBtn').click();player.z=combat.minRangeFor('AutoShot')+.25;lastHudRange=player.z;persistPreferences();saveTalents();renderTalents();
  setModal('howToPanel',false);setModal('talentPanel',false);showToast('SV Weave loaded · 0/20/31 · no pet');
 };
 $('helpBtn').onclick=()=>setModal('helpPanel',true);
 $('helpClose').onclick=$('helpPlay').onclick=()=>setModal('helpPanel',false);
-$('resetBtn').onclick=()=>{combat.reset();combat.aspect=preferences.aspect;combat.tracking=preferences.tracking;player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.shoot=null;attackMotion.melee=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
+$('resetBtn').onclick=()=>{combat.reset();combat.aspect=preferences.aspect;combat.tracking=preferences.tracking;player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.shoot=null;attackMotion.melee=null;attackMotion.offhand=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
 $('weaveComboBtn').onclick=()=>command('weaveCombo');
 $('autoTimerToggle').onclick=$('autoTrackToggle').onclick=()=>$('autoBtn').click();
 $('autoBtn').onclick=()=>{combat.setAutoShot(!combat.autoShot);showToast('Auto Shot '+(combat.autoShot?'on':'off'))};
@@ -341,7 +343,7 @@ window.addEventListener('keydown',e=>{
  if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;
  const chord=eventChord(e),id=inputAction(bindings,chord);
  if(id||['Space','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
- const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel'].some(name=>!$(name).classList.contains('hidden'));
+ const panelOpen=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel','equipmentPanel'].some(name=>!$(name).classList.contains('hidden'));
  if(panelOpen){
   if(id==='closePanel'||e.code==='Escape')command('closePanel');
   else if(id==='clearTalents'&&!$('talentPanel').classList.contains('hidden'))command(id);
@@ -364,7 +366,7 @@ document.addEventListener('wheel',e=>{
 },{capture:true,passive:false});
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('mousedown',e=>{
- if(['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel'].some(name=>!$(name).classList.contains('hidden')))return;
+ if(['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel','equipmentPanel'].some(name=>!$(name).classList.contains('hidden')))return;
  if(e.button===0)gestures.set(e.button,new PressGesture(performance.now()/1000,e.clientX,e.clientY));
  pressed.add('Mouse'+e.button);updateMouseState();
  const id=inputAction(bindings,mouseChord(e));
@@ -417,12 +419,12 @@ function clearCombatText(){
 function updateCombatText(){
  const host=$('combatText');
  for(const event of combat.textEvents.splice(0)){
-  if(floatingTexts.length>=4)continue;
+  if(floatingTexts.filter(t=>t.target===event.target).length>=4)continue;
   const node=document.createElement('span');
-  node.className='floating-text '+event.kind+(event.id==='AutoShot'||event.id==='Melee Swing'?' physical':' spell');
+  node.className='floating-text '+event.kind+(event.id==='AutoShot'||event.id==='Melee Swing'||event.id==='Offhand'?' physical':' spell');
   node.textContent=event.text;
   host.appendChild(node);
-  floatingTexts.push({node,born:combat.time,kind:event.kind});
+  floatingTexts.push({node,born:combat.time,kind:event.kind,target:event.target});
  }
  const diagonal=Math.hypot(window.innerWidth,window.innerHeight);
  const layouts=[];
@@ -430,7 +432,7 @@ function updateCombatText(){
   const item=floatingTexts[i],age=(combat.time-item.born)/1.5;
   if(age>=1){item.node.remove();floatingTexts.splice(i,1);continue}
   const rise=item.kind==='crit'?0:2*age;
-  textAnchor.set(0,HUMAN_HEIGHT*1.25-1/3+rise,0).project(camera);
+  textAnchor.set(item.target==='player'?player.x:0,HUMAN_HEIGHT*1.25-1/3+rise+(item.target==='player'?player.height:0),item.target==='player'?player.z:0).project(camera);
   if(textAnchor.z>1||textAnchor.z< -1||Math.abs(textAnchor.x)>1.2||Math.abs(textAnchor.y)>1.2){
    item.node.remove();floatingTexts.splice(i,1);continue;
   }
@@ -451,7 +453,7 @@ function updateCombatText(){
 let last=performance.now();
 function frame(now){
  const dt=Math.min(.05,(now-last)/1000);last=now;
- const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel'].some(name=>!$(name).classList.contains('hidden'));
+ const blocked=['talentPanel','helpPanel','keybindPanel','trainingPanel','howToPanel','barEditor','settingsPanel','equipmentPanel'].some(name=>!$(name).classList.contains('hidden'));
  keys.clear();
  for(const [id,key] of [['forward','w'],['backward','s'],['turnLeft','a'],['turnRight','d'],['strafeLeft','q'],['strafeRight','e']])if(held(bindings,id,pressed))keys.add(key);
  const axes=blocked||combat.health<=0?{forward:0,side:0,turn:0}:movementAxes(keys,mouse,autorun);
@@ -604,7 +606,10 @@ function updateHud(){
  $('windupBarText').textContent=winding?Math.max(0,windupEnd-combat.time).toFixed(1)+'s':'WAITING';
  const meleeDuration=Math.max(0.01,combat.nextMelee-combat.previousMelee);
  $('meleeBar').style.width=Math.max(0,Math.min(100,100*(combat.time-combat.previousMelee)/meleeDuration))+'%';
- $('meleeBarText').textContent=!combat.meleeAttack?'OFF':combat.time>=combat.nextMelee?'READY':(combat.nextMelee-combat.time).toFixed(1)+'s'; for(const action of ACTIONS){
+ $('meleeBarText').textContent=!combat.meleeAttack?'OFF':combat.time>=combat.nextMelee?'READY':(combat.nextMelee-combat.time).toFixed(1)+'s'; $('offhandRow').hidden=!combat.options.dualWield;
+ $('offhandBar').style.width=Math.max(0,Math.min(100,100*(combat.time-combat.previousOffhand)/Math.max(.01,combat.nextOffhand-combat.previousOffhand)))+'%';
+ $('offhandBarText').textContent=!combat.meleeAttack?'OFF':combat.time>=combat.nextOffhand?'READY':(combat.nextOffhand-combat.time).toFixed(1)+'s';
+ for(const action of ACTIONS){
   for(const b of [buttons.get(action.id),...customBar.buttonsFor(action.id)]){
   const cd=Math.max(0,(combat.cooldowns[action.id]||0)-combat.time);
   const gcd=!SPELLS[action.id].gcdMs?0:Math.max(0,combat.gcdUntil-combat.time);
@@ -650,13 +655,13 @@ function updateCompanions(){
  trapMarker.visible=!!combat.traps.length;if(trapMarker.visible)trapMarker.position.set(combat.traps[0].x,.04,combat.traps[0].z);
 }
 $('trainingBtn').onclick=()=>{
- for(const [id,key] of [['sparringOption','sparring'],['enrageOption','enraged'],['hiddenOption','hidden'],['offhandOption','dualWield'],['regenOption','targetRegen']])$(id).checked=combat.options[key];
+ for(const [id,key] of [['sparringOption','sparring'],['enrageOption','enraged'],['hiddenOption','hidden'],['regenOption','targetRegen']])$(id).checked=combat.options[key];
  $('targetReachOption').value=combat.options.targetCombatReach;
  $('armorOption').value=combat.options.targetArmor;$('targetTypeOption').value=combat.options.targetType;$('petFamilyOption').value=combat.petFamily;
  $('petAutoOption').checked=combat.petAutocast;renderPetSkills();setModal('trainingPanel',true);
 };
 $('trainingClose').onclick=()=>setModal('trainingPanel',false);
-for(const [id,key] of [['sparringOption','sparring'],['enrageOption','enraged'],['hiddenOption','hidden'],['offhandOption','dualWield'],['regenOption','targetRegen']])$(id).onchange=e=>{combat.options[key]=e.target.checked;persistPreferences()};
+for(const [id,key] of [['sparringOption','sparring'],['enrageOption','enraged'],['hiddenOption','hidden'],['regenOption','targetRegen']])$(id).onchange=e=>{combat.options[key]=e.target.checked;persistPreferences()};
 for(const type of ['Humanoid','Beast','Demon','Dragonkin','Elemental','Giant','Undead']){const option=document.createElement('option');option.textContent=type;$('targetTypeOption').appendChild(option)}
 $('armorOption').onchange=e=>{combat.options.targetArmor=Math.max(0,Math.min(20000,Number(e.target.value)||0));e.target.value=combat.options.targetArmor;persistPreferences()};
 $('targetReachOption').onchange=e=>{const value=Number(e.target.value);combat.options.targetCombatReach=combatReach(value);e.target.value=combat.options.targetCombatReach;persistPreferences()};
@@ -677,10 +682,10 @@ $('natureHitBtn').onclick=()=>{combat.receiveNatureDamage(300);showToast('Nature
 $('endViewBtn').onclick=()=>{delete combat.auras.eyes;delete combat.auras.eagleEye;delete combat.auras.feign;setModal('trainingPanel',false)};
 for(const [id,order] of [['petAttack','attack'],['petFollow','follow'],['petStay','stay']])$(id).onclick=()=>{if(!combat.petCommand(order))showToast('Call your pet first')};
 
-function currentSettings(){return {...preferences,training:{...combat.options},aspect:combat.aspect,tracking:combat.tracking,petFamily:combat.petFamily,petAutocast:combat.petAutocast,hitboxes:targetHitbox.visible}}
+function currentSettings(){return {...preferences,training:{...combat.options},loadout:{...combat.loadout,mode:combat.options.dualWield?'dualWield':'twoHand'},aspect:combat.aspect,tracking:combat.tracking,petFamily:combat.petFamily,petAutocast:combat.petAutocast,hitboxes:targetHitbox.visible}}
 function persistPreferences(){preferences=currentSettings();const saved=saveSettings(window.localStorage,preferences);if(!saved)showToast('Settings apply for this session; browser storage is unavailable');return saved}
 function applyPreferences(value){
- preferences=value;combat.options={...value.training};combat.petFamily=value.petFamily;combat.petAutocast=value.petAutocast;combat.aspect=value.aspect;combat.tracking=value.tracking;
+ preferences=value;combat.options={...value.training};combat.configureLoadout(value.loadout);combat.petFamily=value.petFamily;combat.petAutocast=value.petAutocast;combat.aspect=value.aspect;combat.tracking=value.tracking;
  if(combat.pet)combat.pet.autocast=value.petAutocast;
  $('buffBar').hidden=!value.showBuffs;$('dpsMeter').hidden=!value.showStats;document.querySelector('.telemetry-column').dataset.showStats=String(value.showStats);
  targetHitbox.visible=playerHitbox.visible=value.hitboxes;$('hitboxBtn').textContent=value.hitboxes?'Hide hitboxes':'Show hitboxes';
@@ -689,13 +694,15 @@ const settingsPanel=createSettingsPanel({app,storage:window.localStorage,setModa
  changeSettings:value=>{applyPreferences(value);return persistPreferences()},
  getSetup:()=>({settings:currentSettings(),talents:{...combat.talents},bindings:{...bindings},slots:customBar.snapshot()}),
  applySetup:setup=>{
-  $('resetBtn').click();applyPreferences(setup.settings);combat.pet=null;combat.talents={...setup.talents};bindings={...setup.bindings};
+  applyPreferences(setup.settings);combat.talents={...setup.talents};$('resetBtn').click();combat.pet=null;bindings={...setup.bindings};
   const results=[persistPreferences(),saveTalents(),saveBindings(window.localStorage,bindings),customBar.restore(setup.slots)];
   selectPage('Custom');renderTalents();refreshBindingLabels();return results.every(Boolean);
  }
 });
 $('settingsBtn').onclick=()=>settingsPanel.open();
-applyPreferences(preferences);
+applyPreferences(preferences);combat.reset();combat.aspect=preferences.aspect;combat.tracking=preferences.tracking;
+const equipmentPanel=createEquipmentPanel({app,setModal,getLoadout:()=>currentSettings().loadout,getCombat:()=>combat,applyLoadout:value=>{combat.configureLoadout(value);$('resetBtn').click();return persistPreferences()}});
+$('equipmentBtn').onclick=()=>equipmentPanel.open();$('trainingEquipmentBtn').onclick=()=>{setModal('trainingPanel',false);equipmentPanel.open()};
 requestAnimationFrame(frame);
 
 export function movementSnapshot() {
@@ -707,3 +714,5 @@ export function weavingSnapshot(){return {time:combat.time,rangedMin:combat.minR
 export function rangeSnapshot(){return {selectionRadius:selectionRing.geometry.parameters.outerRadius*target.scale.x,modelFootprint:{width:targetModelSize.x,depth:targetModelSize.z,scale:target.scale.x},selectionVisible:selectionRing.visible&&target.visible,bodyRadius:HUMAN_RADIUS*targetHitbox.scale.x,clickRadius:.65*targetClickArea.scale.x,markers:rangeMarkers.snapshot(),meleeMax:combat.rangeFor('RaptorStrike'),rangedMin:combat.minRangeFor('AutoShot'),rangedMax:combat.rangeFor('AutoShot')};}
 
 export function avatarSnapshot(){return {...hunterVisual.snapshot(),projectiles:projectiles.length};}
+
+export function equipmentSnapshot(){return {loadout:structuredClone(currentSettings().loadout),stats:{...combat.stats()},outcomes:{...combat.outcomes},mainHand:{next:combat.nextMelee,previous:combat.previousMelee},offHand:{next:combat.nextOffhand,previous:combat.previousOffhand},meleeAttack:combat.meleeAttack,mongooseSource:combat.mongooseSource}}

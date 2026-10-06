@@ -127,7 +127,7 @@ test('tracking bonus needs matching type; Careful Aim and Lightning Reflexes cha
  const c=quiet();c.talents={improvedTracking:5,carefulAim:5,lightningReflexes:5};
  assert.equal(c.damageMultiplier('ArcaneShot'),1.05);
  c.options.targetType='Beast';assert.equal(c.damageMultiplier('ArcaneShot'),1);
- assert.ok(Math.abs(c.stats().agi-230)<1e-9);assert.equal(c.stats().melee,580);
+ assert.ok(Math.abs(c.stats().agi-230)<1e-9);assert.equal(c.stats().melee,580);assert.equal(c.stats().ranged,730);
 });
 test('Rapid Recuperation and Resourcefulness enable regeneration inside five-second rule',()=>{
  const c=quiet();c.talents={rapidRecuperation:2};c.resolve('SerpentSting');c.lastSpend=0;c.mana=1000;

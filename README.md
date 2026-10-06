@@ -40,7 +40,7 @@ python3 tools/extract-hunter.py --source "$SIMULATOR_SOURCE"
 
 The combat engine has training handlers for 60 Hunter ability records, all 51 talents and 19 pet families. Use the action-bar pages for the expanded spellbook, and **Training** for pet selection, sparring, target creature type, armor, enrage, stealth and health regeneration. Pet attack/follow/stay buttons sit beneath the hunter frame. All Hunter and pet abilities have keybinding entries.
 
-Read [COVERAGE.md](COVERAGE.md) for the complete ability and talent mapping, source evidence, checks and remaining parity limits. The browser remains a training approximation with fixed equipment and a simplified combat table. It does not execute Forever's Go simulator, and its utility, pet, trap and encounter models are not fully verified against the live game. Supplemental spell-store records are labeled in Training settings.
+Read [COVERAGE.md](COVERAGE.md) for the complete ability and talent mapping, source evidence, checks and remaining parity limits. The browser remains a training approximation with configurable equipment and a physical combat table for a level 60 hunter against level 60–63 NPCs. It does not execute Forever's Go simulator, and its utility, pet, trap and encounter models are not fully verified against the live game. Supplemental spell-store records are labeled in Training settings.
 
 Movement and camera behavior support the flat training arena. See [MOVEMENT.md](MOVEMENT.md) for exact values, input transitions, checks and remaining limits. Ground movement buffs do not change gravity, vertical launch speed or existing airborne momentum.
 
@@ -137,7 +137,7 @@ Run tools/nameplate-browser-check.mjs with BROWSER_DEBUG_URL, GAME_URL and a scr
 
 ## SV Weave preset and guide
 
-New or invalid talent storage starts with Forever's SV Weave talents: 0/20/31, encoded as -00530501114-550200030050220151. Existing valid saved builds, including an intentionally empty build, remain available. Talents and How to both offer Load SV Weave & reset: this applies the build, saves it, resets the encounter, dismisses the pet, removes the offhand and places the hunter 0.25 yd beyond the current ranged minimum. Weapons remain the training equipment.
+New or invalid talent storage starts with Forever's SV Weave talents: 0/20/31, encoded as -00530501114-550200030050220151. Existing valid saved builds, including an intentionally empty build, remain available. Talents and How to both offer Load SV Weave & reset: this applies the build, saves it, resets the encounter, dismisses the pet and places the hunter 0.25 yd beyond the current ranged minimum. Your configured weapons remain equipped.
 
 Open How to (F2 by default) for setup, the melee swing window, spell priority, windup rules and weaving metrics. Both opening the guide and loading the preset are rebindable. The guide displays current ability keybinds.
 
@@ -169,7 +169,7 @@ Aspect buttons show the full wrapped name and highlight the active aspect in gre
 
 ## Settings and saved setups
 
-Open Settings in the top bar. Training options (target reach, armor, type, sparring, regeneration, enrage, stealth and offhand), selected aspect/tracking, pet family/autocast, buff/stat visibility and hitbox visibility now save automatically in localStorage. Existing talent, keybind and custom-bar saves remain compatible. Reloading restores these preferences, and encounter resets retain them.
+Open Settings in the top bar. Training options (target reach, armor, type, sparring, regeneration, enrage, stealth), selected aspect/tracking, pet family/autocast, buff/stat visibility and hitbox visibility now save automatically in localStorage. Existing talent, keybind and custom-bar saves remain compatible. Reloading restores these preferences, and encounter resets retain them.
 
 Give a setup a name and choose Save / update setup to capture these preferences together with talents, keybinds and all 12 custom slots. Select a saved setup to load it or delete it. Loading starts a fresh encounter with the saved configuration; it does not restore health, damage, cooldowns, temporary buffs or a summoned pet. Up to 30 named setups can be kept. Saves belong to the current browser and site address; clearing site data removes them. Storage failures are reported, and current session changes still work.
 
@@ -182,3 +182,19 @@ Raptor + Kick (default Shift+R) queues Raptor Strike if available, then attempts
 Raptor Strike can be queued up to 2 yd beyond current melee reach (7 yd with default human reach). This training input buffer does not extend hit range: the queue waits for the next ready main-hand swing inside actual melee range, and mana/cooldown are spent on that swing. An early queue leaves Auto Shot on until melee entry. The macro can queue Raptor early; press it again in melee for Strider Kick. Target, facing, mana and cooldown checks still apply when queueing.
 
 Auto Shot delay rules: movement during windup cancels it and starts a 0.5 s retry; after a retry succeeds, the shot still needs its 0.5 s windup. Casts and GCD do not hold Auto Shot. A main-hand swing requires one fresh ranged weapon cycle on reactivation in ranged distance. That cycle counts down even while facing away; facing gates the windup/release, not the restart. Stopping Auto Shot preserves a pending melee reset so later activation cannot leave the timer at infinity. Ranged haste changes apply to the next cycle without rescaling a cycle already running. Projectile travel delays damage display, not the next shot. Frame-driven scheduling can still add up to roughly one frame at each timer boundary.
+
+## Stats, weapons and combat rolls
+
+Open **Stats & weapons** in the top bar, Settings, or with **C** (rebindable). Apply resets the encounter. Configuration saves in this browser and in named setups.
+
+Enter unbuffed attack power, crit, dodge, parry, health and mana totals before talents/aspects. These totals already include attributes and gear; entering Agility does not add it to AP a second time. Lightning Reflexes adds only its extra Agility contribution: 1 melee AP and 2 ranged AP per point, plus crit/dodge. Careful Aim adds Intellect-derived AP to both attack types. Armor, hit, expertise and ammo DPS are also configurable. This is manual stat entry, not a gear importer.
+
+Ranged, two-handed, one-handed main-hand and off-hand weapon profiles each retain their own damage range and base speed. Damage rolls within the tooltip range and adds `AP × speed / 14`. Ammo adds its DPS times ranged speed. Aimed Shot, Multi-Shot and Sniper Shot normalize the AP speed to 2.8. Mongoose Bite and Strider Kick normalize melee AP speed to 3.3 for two-handed weapons, 2.4 for one-handed weapons or 1.7 for daggers. Raptor uses actual main-hand speed.
+
+Two one-handed weapons have independent timers, damage rolls and animations. Off-hand damage is halved, then multiplied by Predator's Edge. Its timer appears beneath the main-hand timer. Raptor replaces and spends the next eligible main-hand swing only; an earlier off-hand hit does not consume it. A missed, dodged or parried Raptor still uses the swing, mana and cooldown. White swings continue only after a melee command; restarting Auto Shot turns melee attacks off.
+
+Physical rolls use Forever's level 60–63 NPC tables: miss, dodge, frontal parry/block, white-only glancing blows and crit suppression. Dual-wield adds 19 percentage points of white miss chance; yellow attacks and ranged shots avoid that penalty. Expertise reduces dodge/parry by 0.25 percentage points per point. Ranged attacks cannot dodge, parry or glance. The dummy faces toward the initial spawn position; its rear half removes parry/block but retains NPC dodge. Block capability/value and target parry haste are configurable. Armor mitigation caps at 75%. Glancing reduction uses the simulator's mean multiplier.
+
+A target dodge opens Mongoose Bite's five-second window, matching Forever's outgoing-dodge callback. Incoming sparring dodges also open it; parries open Counterattack and shorten the main-hand wait through parry haste, without crossing the 20% remaining-time floor. The buff/ability shows its source. Sparring uses configured swing speed/damage, player dodge/parry/armor, level-based crits and level-63 crushing blows. Incoming text appears above the hunter. Target level is shown on the nameplate.
+
+The modal summarizes current physical odds and encounter outcomes. Remaining approximations include pets/guardians, magic resistance and spell tables, weapon skill/racial mechanics, defense skill, and baseline mana regeneration (22 per second). This is not a full live-game combat implementation.

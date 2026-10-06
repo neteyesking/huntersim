@@ -25,7 +25,7 @@ try{
  await evaluate("document.getElementById('guidePreset').click()");await wait(100);
  assert.equal(await evaluate("document.getElementById('howToPanel').classList.contains('hidden')"),true);
  assert.ok((await evaluate("document.getElementById('rangeText').textContent")).startsWith('11.3'));
- assert.equal(await evaluate("document.getElementById('offhandOption').checked"),false);
+ assert.ok(await evaluate("!!document.getElementById('equipmentBtn')"));
  assert.ok((await evaluate("document.getElementById('petVitals').textContent")).includes('No active pet'));
  assert.equal(await evaluate("JSON.parse(localStorage.getItem('hunter-talents-v2')).laceratingStrikes"),1);
  await evaluate("document.getElementById('trainingBtn').click();var input=document.getElementById('targetReachOption');input.value='5';input.dispatchEvent(new Event('change'))");await wait(100);

@@ -111,7 +111,7 @@ Rank curves are read directly: for example, Barrage is 3/7/10, Ferocity is 2/4/6
 
 Use the action-bar pages to find every spell. Use **Training** to select target type, enrage, stealth, armor and health regeneration; enable sparring; choose a pet; wound, poison or stun it; apply Nature damage; restore the target; or end a remote view. Restore target preserves hunter cooldowns and procs, allowing Rapid Killing practice after a kill.
 
-Sparring attacks every two seconds while the hunter is in melee range or an attacking pet has higher threat. It provides a controlled way to test dodge, parry, threat, Scorpid Sting and defensive talents. It is a simple encounter model.
+Sparring attacks at the configured interval (two seconds by default) while the hunter is in melee range or an attacking pet has higher threat. It provides a controlled way to test dodge, parry, threat, Scorpid Sting and defensive talents. It is a simple encounter model.
 
 ## Verification
 
@@ -122,7 +122,7 @@ Sparring attacks every two seconds while the hunter is in melee range or an atta
 
 ## Remaining parity limits
 
-- Fixed training weapons, stats, base mana assumptions and 22 mana/second baseline. No gear import, ammunition inventory, full spell/physical attack tables, weapon skill, glancing blows, block, partial resists or racial mechanics.
+- Manual stats and weapon profiles support ranged, two-handed and independent dual-wield swings. Physical tables cover level 60–63 NPC miss/dodge/parry/block/glancing/crit. Baseline mana regeneration remains 22 per second. Gear import, ammunition inventory, full spell attack tables, weapon/defense skill, partial resists and racial mechanics remain incomplete.
 - Spell rank base values are extracted; general level scaling from each effect’s PPL field is not evaluated. Unknown spell-mask exceptions still need systematic comparison.
 - Outgoing spell outcomes and damage are generally resolved at impact. Snapshot timing is simplified; Serpent reads current attack power at each tick. Lacerating Strikes uses the landed bite damage.
 - Pet health/armor inheritance, Nature resistance, threat switching, utility ranges, trap arming/proximity and control duration behavior are training models. Full pet training passives, loyalty, happiness decay, resistances, pathfinding, crowd-control diminishing returns and immunity categories are incomplete.
@@ -138,3 +138,9 @@ Sparring attacks every two seconds while the hunter is in melee range or an atta
 Read AGENTS.md, this document and the relevant Forever spell implementation first. Work in **HunterSimGame**, regardless of the initial working directory. Extend the existing handler and focused tests together. Do not make an unimplemented effect appear selectable without a corresponding state or gameplay effect. Preserve source uncertainty in the coverage notes.
 
 Attack and Raptor + Kick are interface commands, separate from the 60 spell records. Attack explicitly enables melee white swings and disables Auto Shot; walking into range does not attack by itself. The macro attempts normal Raptor Strike queuing and Strider Kick casting, preserving each component’s requirements. Manually enabling Auto Shot ends melee and clears the Raptor queue.
+
+## Configurable equipment and avoidance
+
+`src/equipment.js` validates saved character, weapon and target inputs. `src/attack-table.js` holds physical outcome rules. The corresponding simulator rules are in `sim/core/attack.go`, `sim/core/target.go`, `sim/core/spell_outcome.go`, `sim/hunter/raptor_strike.go` and `sim/hunter/mongoose_bite.go`. Raptor is a main-hand replacement with actual-speed damage; Mongoose and Kick use normalized damage. The outgoing dodge callback and incoming sparring dodge both open the Mongoose window. Only the physical hunter tables are matched here; pet and magical outcomes retain the training model.
+
+`src/equipment.test.js` verifies formulas, independent hands, Raptor queue ownership, avoidance, normalization, mitigation, reactions and storage validation. `tools/equipment-browser-check.mjs` verifies the modal, persistence, paused editing, hand timers, mode changes and dual-wield visuals.

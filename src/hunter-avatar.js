@@ -68,15 +68,17 @@ export function createHunterAvatar(){
  mesh(sword,new THREE.BoxGeometry(.24,.04,.06),brass,0,.04,0);
  mesh(sword,new THREE.CylinderGeometry(.026,.026,.17,8),leather,0,-.065,0);
  ball(sword,.036,brass,0,-.16,0);
+ const offSword=sword.clone();body.add(offSword);offSword.scale.setScalar(.8);
  const trailGeometry=new THREE.BufferGeometry();trailGeometry.setAttribute('position',new THREE.Float32BufferAttribute(new Array(18).fill(0),3));
  const trail=mesh(body,trailGeometry,new THREE.MeshBasicMaterial({color:'#f4cf7e',transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));trail.castShadow=false;
  const previousTip=new THREE.Vector3(),previousBase=new THREE.Vector3();let wasSlashing=false;
  const shadow=mesh(group,new THREE.CircleGeometry(.43,32),new THREE.MeshBasicMaterial({color:0x071713,transparent:true,opacity:.3}),0,.025,0);shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;
  let state={pose:'idle',draw:0,ability:null};
  const v=(x,y,z)=>new THREE.Vector3(x,y,z);
- function update({time,dt,moving,airborne,melee,aiming,draw,releaseAge,meleeAge,ability}){
+ function update({time,dt,moving,airborne,melee,aiming,draw,releaseAge,meleeAge,ability,dualWield=false,offhandAge=-1}){
   const blend=1-Math.exp(-dt*22),release=releaseAge>=0&&releaseAge<.28,slashing=meleeAge>=0&&meleeAge<MELEE_ANIMATION_DURATION;
-  const shooting=(aiming||release)&&!slashing,ready=melee||slashing;
+  const offSlashing=dualWield&&offhandAge>=0&&offhandAge<MELEE_ANIMATION_DURATION;
+  const shooting=(aiming||release)&&!slashing&&!offSlashing,ready=melee||slashing||offSlashing;
   const recoil=release?Math.sin(Math.PI*releaseAge/.28):0;
   const progress=THREE.MathUtils.clamp(draw,0,1),pull=.13+progress*.37;
   const gait=moving&&!airborne?Math.sin(time*13)*.13:0;
@@ -105,9 +107,11 @@ export function createHunterAvatar(){
    }
    left=v(-.34,1.34,.12);
   }
+  let offDirection=v(-.05,.5,.85);
+  if(offSlashing){const phase=offhandAge/MELEE_ANIMATION_DURATION,arc=Math.sin(phase*Math.PI);left=v(-.33+arc*.5,1.24+arc*.25,.30+arc*.35);offDirection=v(-.5+phase*1.3,Math.cos(phase*Math.PI),1);}
   body.rotation.y=twist;
   if(airborne&&!shooting&&!slashing){left.y+=.17;right.y+=.17}
-  poseArm(arms[0],left,-1,blend);poseArm(arms[1],right,1,slashing?1:blend);
+  poseArm(arms[0],left,-1,offSlashing?1:blend);poseArm(arms[1],right,1,slashing?1:blend);
   for(const {hip,knee} of legs)knee.rotation.x=airborne?.45:Math.max(0,-hip.rotation.x)*1.05;
   if(shooting){bow.position.copy(arms[0].hand.position);bow.rotation.set(0,0,-.06)}
   else if(ready){bow.position.set(-.18,1.30,-.27);bow.rotation.set(0,0,.35)}
@@ -116,10 +120,12 @@ export function createHunterAvatar(){
   arrow.visible=shooting&&!release;arrow.position.set(0,0,-pull);
   sword.position.copy(ready?arms[1].hand.position:v(.25,.97,-.05));
   sword.quaternion.setFromUnitVectors(yAxis,swordDirection.normalize());
+  sword.scale.setScalar(dualWield?.85:1);offSword.visible=dualWield;
+  offSword.position.copy(ready?arms[0].hand.position:v(-.25,.97,-.05));offSword.quaternion.setFromUnitVectors(yAxis,(ready?offDirection:v(-.12,-1,-.08)).normalize());
   const tip=v(0,.87,0).applyQuaternion(sword.quaternion).add(sword.position),base=v(0,.23,0).applyQuaternion(sword.quaternion).add(sword.position);
   if(swingPhase==='cut'&&wasSlashing){const a=trailGeometry.attributes.position;[previousBase,previousTip,tip,previousBase,tip,base].forEach((p,i)=>a.setXYZ(i,p.x,p.y,p.z));a.needsUpdate=true;trailGeometry.computeBoundingSphere();trail.material.opacity=(ability==='RaptorStrike'?.42:.20)*Math.sin(Math.PI*(meleeAge-.12)/((ability==='RaptorStrike'?.38:.34)-.12))}else trail.material.opacity=0;
   previousTip.copy(tip);previousBase.copy(base);wasSlashing=slashing;
-  state={pose:slashing?'sword-swing':release?'bow-release':shooting?'bow-draw':airborne?'jump':moving?'run':ready?'melee-ready':'idle',draw:progress,ability:slashing||release?ability:null,height:HUMAN_HEIGHT,swingPhase,swordTip:tip.clone().applyAxisAngle(yAxis,twist).toArray()};
+  state={dualWield,offhandSwing:offSlashing,offhandTip:v(0,.87,0).multiplyScalar(.8).applyQuaternion(offSword.quaternion).add(offSword.position).toArray(),pose:slashing?'sword-swing':release?'bow-release':shooting?'bow-draw':airborne?'jump':moving?'run':ready?'melee-ready':'idle',draw:progress,ability:slashing||release?ability:null,height:HUMAN_HEIGHT,swingPhase,swordTip:tip.clone().applyAxisAngle(yAxis,twist).toArray()};
  }
  update({time:0,dt:1,moving:false,airborne:false,melee:false,aiming:false,draw:0,releaseAge:-1,meleeAge:-1,ability:null});
  return {group,upperBody,legL:legs[0].hip,legR:legs[1].hip,update,snapshot:()=>({...state,swordTip:[...state.swordTip],stringPull:-stringGeometry.attributes.position.getZ(1),leftHand:arms[0].hand.position.toArray(),rightHand:arms[1].hand.position.toArray()}),muzzlePosition:()=>bow.localToWorld(new THREE.Vector3(0,0,.25))};

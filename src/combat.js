@@ -1,3 +1,5 @@
+import {normalizeLoadout,weaponDamage,armorMultiplier} from './equipment.js';
+import {physicalTable,rollPhysical,parryHastedSwing} from './attack-table.js';
 import {DamageMeter} from './damage-meter.js';
 import {WeavingStats} from './weaving.js';
 import {attackRange,centerDistance,DEFAULT_TARGET_COMBAT_REACH} from './scale.js';
@@ -8,9 +10,10 @@ const RAPTOR_QUEUE_BUFFER=2;
 const rangedWeapon=new Set(['AutoShot','AimedShot','MultiShot','SniperShot','ScatterShot']);
 const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin',TrackElementals:'Elemental',TrackGiants:'Giant',TrackHumanoids:'Humanoid',TrackUndead:'Undead'};
 export class Combat {
- constructor(random=Math.random,{rangedWeaponSpeed=2.8}={}){this.rangedWeaponSpeed=rangedWeaponSpeed;this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
+ constructor(random=Math.random,{rangedWeaponSpeed,loadout}={}){this.loadout=normalizeLoadout(loadout);if(rangedWeaponSpeed!==undefined)this.loadout.ranged.speed=rangedWeaponSpeed;this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:this.loadout.mode==='dualWield',targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
  reset(){
-  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,meleeAttack:false,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,autoStoppedInMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,mongooseSource:null,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
+  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,meleeAttack:false,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,autoStoppedInMelee:false,previousMelee:0,previousOffhand:0,nextMelee:this.mainWeapon().speed,nextOffhand:this.loadout.offHand.speed,raptorQueued:false,mongooseUntil:0,mongooseSource:null,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:this.loadout.target.attackSpeed,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
+  this.maxHealth=this.health=this.loadout.stats.health*(1+this.pct('survivalist'));this.maxMana=this.mana=this.loadout.stats.mana;this.inFrontOfTarget=true;this.outcomes={};
   this.weaving=new WeavingStats();this.meter=new DamageMeter();
   this.log('Training begins.');
  }
@@ -24,12 +27,29 @@ export class Combat {
  raptorQueueRange(){return this.rangeFor('RaptorStrike')+RAPTOR_QUEUE_BUFFER}
  minRangeFor(id){return attackRange(SPELLS[id],0,this.options.targetCombatReach).min}
  petActive(){return !!this.pet?.active&&this.pet.health>0}
+ get rangedWeaponSpeed(){return this.loadout.ranged.speed}
+ set rangedWeaponSpeed(value){this.loadout.ranged.speed=value}
+ mainWeapon(){return this.options.dualWield?this.loadout.mainHand:this.loadout.twoHand}
+ configureLoadout(value){this.loadout=normalizeLoadout(value);this.options.dualWield=this.loadout.mode==='dualWield'}
  stats(){
-  const agi=200*(1+this.pct('lightningReflexes')),intellect=100;
-  const common=450+(agi-200)+intellect*this.pct('carefulAim');
-  return {agi,intellect,melee:common+(this.auras.howl?RECORDS.FuriousHowlTriggered.effects[0].value:0)+(['AspectOfTheBeast','AspectOfTheFalcon'].includes(this.aspect)?this.aspect==='AspectOfTheBeast'?110:120:0),
-   ranged:common+(['AspectOfTheHawk','AspectOfTheFalcon'].includes(this.aspect)?120:0)+(this.auras.mark?71:0)+(this.auras.trueshot?SPELLS.TrueshotAura.effects[0].value:0),
-   crit:.2+this.pct('lethalAttacks')+(agi-200)/5300};
+  const base=this.loadout.stats,agi=base.agility*(1+this.pct('lightningReflexes')),intellect=base.intellect,extraAgi=agi-base.agility;
+  return {agi,intellect,melee:base.meleeAP+extraAgi+intellect*this.pct('carefulAim')+(this.auras.howl?RECORDS.FuriousHowlTriggered.effects[0].value:0)+(['AspectOfTheBeast','AspectOfTheFalcon'].includes(this.aspect)?this.aspect==='AspectOfTheBeast'?110:120:0),
+   ranged:base.rangedAP+extraAgi*2+intellect*this.pct('carefulAim')+(['AspectOfTheHawk','AspectOfTheFalcon'].includes(this.aspect)?120:0)+(this.auras.mark?71:0)+(this.auras.trueshot?SPELLS.TrueshotAura.effects[0].value:0),
+   crit:base.crit/100+this.pct('lethalAttacks')+extraAgi/5300};
+ }
+ attackTable(id){
+  const white=id==='Melee Swing'||id==='Offhand',target=this.loadout.target;
+  return physicalTable({level:target.level,hit:this.loadout.stats.hit/100+this.pct('surefooted',2),expertise:this.loadout.stats.expertise,crit:this.stats().crit+(MELEE.has(id)?this.pct('savageStrikes'):0),white,dualWield:this.options.dualWield,ranged:rangedWeapon.has(id),front:this.inFrontOfTarget,canParry:target.canParry,canBlock:target.canBlock,unavoidable:id==='Counterattack'});
+ }
+ recordOutcome(kind,id){this.outcomes[kind]=(this.outcomes[kind]||0)+1;this.log((SPELLS[id]?.name||id)+' '+kind,'miss');this.textEvents.push({text:kind[0].toUpperCase()+kind.slice(1),kind:'miss',id})}
+ physicalOutcome(id){
+  const result=rollPhysical(this.attackTable(id),this.random,id==='Melee Swing'||id==='Offhand',id!=='RaptorStrike'&&id!=='Melee Swing'&&id!=='Offhand');
+  if(['miss','dodge','parry'].includes(result.kind)){
+   this.recordOutcome(result.kind,id);
+   if(result.kind==='parry'&&this.loadout.target.parryHaste)this.nextIncoming=parryHastedSwing(this.time,this.nextIncoming,this.loadout.target.attackSpeed);
+   if(result.kind==='dodge'){this.mongooseUntil=this.time+RECORDS.DefensiveStateTriggered.durationMs/1000;this.mongooseSource='Target dodge'}
+  }
+  return result;
  }
  manaCost(id){
   const s=SPELLS[id];let cost=(s.mana||0)+(s.manaPct||0)*this.maxMana/100;
@@ -158,7 +178,7 @@ export class Combat {
   this.log(s.name+' active','buff');
  }
  hit(id,bonus=0){
-  if(this.random()<Math.max(0,.08-this.pct('surefooted',2)-bonus)){
+  if(this.random()<Math.max(0,[.05,.055,.06,.08][this.loadout.target.level-60]-Math.max(0,this.loadout.stats.hit/100+this.pct('surefooted',2)-(this.loadout.target.level===63?.01:0))-bonus)){
    this.log((SPELLS[id]?.name||id)+' missed','miss');this.textEvents.push({text:'Miss',kind:'miss',id});return false;
   }return true;
  }
@@ -173,24 +193,29 @@ export class Combat {
   if(TRAPS.includes(id))m*=1+this.pct('cleverTraps',1);
   return m;
  }
- rollDamage(base,id,{periodic=false,landed=false,pet=false,guardian=false,raw=false,guaranteedCrit=false}={}){
+ rollDamage(base,id,{periodic=false,landed=false,pet=false,guardian=false,raw=false,guaranteedCrit=false,outcome=null}={}){
   if(this.targetHealth<=0)return 0;
-  if(!periodic&&!landed&&!this.hit(id))return 0;
+  if(!periodic&&!landed){
+   if(!pet&&!guardian&&(MELEE.has(id)||rangedWeapon.has(id)||id==='Melee Swing'||id==='Offhand'))outcome=this.physicalOutcome(id);
+   else if(!this.hit(id))return 0;
+  }
+  if(outcome&&['miss','dodge','parry'].includes(outcome.kind))return 0;
   const melee=MELEE.has(id)||id==='Melee Swing'||id==='Offhand';
   const chance=this.stats().crit+(MELEE.has(id)?this.pct('savageStrikes'):0)+((pet||guardian||id==='SummonHawk')?this.pct('ferocity'):0);
   const intimidating=pet&&!periodic&&!!this.auras.intimidation;
-  const crit=!periodic&&(intimidating||guaranteedCrit||this.random()<chance);
+  const crit=!periodic&&(intimidating||guaranteedCrit||(outcome?outcome.crit:this.random()<chance));
   const bonus=pet||guardian?0:melee?this.pct('predatorsEdge'):rangedWeapon.has(id)||isShot(id)?this.pct('mortalShots'):0;
   const physical=melee||rangedWeapon.has(id)||pet;
   const armor=Math.max(0,(this.options.targetArmor||0)-(this.debuffs.armorReduced?505:0));
-  const mitigation=!periodic&&physical?1-armor/(armor+5500):1;
-  const amount=Math.max(0,Math.floor(base*mitigation*(crit?2+bonus:1)+1e-9));
+  const mitigation=!periodic&&physical?armorMultiplier(armor):1;
+  const amount=Math.max(0,Math.floor(base*mitigation*(outcome?.multiplier??1)*(crit?2+bonus:1)-(outcome?.kind==='block'?this.loadout.target.blockValue:0)+1e-9));
+  if(outcome){const kind=crit?'crit':outcome.kind;this.outcomes[kind]=(this.outcomes[kind]||0)+1}
   this.targetHealth=Math.max(0,this.targetHealth-amount);this.damage+=amount;this.meter.add(this.time,id,amount,crit,pet?'Pet':guardian?'Guardian':'Hunter');
   if(pet)this.petThreat+=amount;else this.threat+=amount;
   if(intimidating){this.control('stun',3);this.petThreat+=RECORDS.IntimidationTriggered.effects[0].value;delete this.auras.intimidation}
   if(amount){delete this.debuffs.freeze;delete this.debuffs.scatter;delete this.debuffs.fear}
-  this.log((crit?'Critical ':'')+(SPELLS[id]?.name||id)+' '+amount,crit?'crit':'damage');
-  this.textEvents.push({text:String(amount),kind:crit?'crit':'damage',id});
+  this.log((crit?'Critical ':'')+(SPELLS[id]?.name||id)+' '+amount+(outcome?.kind==='glance'?' (glancing)':outcome?.kind==='block'?' (blocked)':''),crit?'crit':'damage');
+  this.textEvents.push({text:String(amount)+(outcome?.kind==='glance'?' glancing':outcome?.kind==='block'?' blocked':''),kind:crit?'crit':'damage',id});
   if(!periodic&&!pet&&!guardian){
    if(amount>0&&(melee||isShot(id))&&this.auras.mark>this.time&&this.rank('exposePrey')&&this.random()<this.pct('exposePrey')){
     this.mongooseUntil=this.time+RECORDS.DefensiveStateTriggered.durationMs/1000;this.mongooseSource='Expose Prey';
@@ -206,8 +231,8 @@ export class Combat {
   if(this.targetHealth===0&&this.rank('rapidKilling'))this.buff('rapidKilling',20);
   return amount;
  }
- weaponDamage(){return 95+this.random()*50+this.rangedWeaponSpeed*this.stats().ranged/14+this.rangedWeaponSpeed*17.5}
- meleeDamage(){return 80+this.stats().melee*2.4/14}
+ weaponDamage(normalized=false){return weaponDamage(this.loadout.ranged,this.stats().ranged,this.random(),normalized?2.8:this.rangedWeaponSpeed)+this.rangedWeaponSpeed*this.loadout.stats.ammoDps}
+ meleeDamage(offhand=false,normalized=false){const w=offhand?this.loadout.offHand:this.mainWeapon();return weaponDamage(w,this.stats().melee,this.random(),normalized?(this.options.dualWield?(w.dagger?1.7:2.4):3.3):w.speed)}
  dot(id,amount,period,duration,{raw=false,pet=false,drain=0}={}){
   this.dots[id]={id,amount:raw?amount:amount*this.damageMultiplier(id,pet),period,next:this.time+period,until:this.time+duration,pet,drain};
  }
@@ -215,7 +240,8 @@ export class Combat {
   if(this.targetHealth<=0)return;
   if(id==='MongooseBite')this.mongooseUntil=0;
   if(id==='Counterattack')this.counterUntil=0;
-  if(id!=='SummonHawk'&&!this.hit(id))return;
+  const outcome=MELEE.has(id)||rangedWeapon.has(id)?this.physicalOutcome(id):null;
+  if(outcome?['miss','dodge','parry'].includes(outcome.kind):id!=='SummonHawk'&&!this.hit(id)){if(id==='MongooseBite')this.mongooseUntil=0;return;}
   const s=SPELLS[id],v=s?.effects[0]?.value||0;
   if(id.endsWith('Sting')){
    if(this.sting)delete this.dots[this.sting.id];
@@ -227,13 +253,15 @@ export class Combat {
   }
   let base=0;
   switch(id){
-   case 'AutoShot':case 'MultiShot':base=this.weaponDamage();break;
+   case 'AutoShot':base=this.weaponDamage();break;
+   case 'MultiShot':base=this.weaponDamage(true);break;
    case 'ArcaneShot':base=v+.1*this.stats().ranged;break;
-   case 'AimedShot':case 'SniperShot':base=this.weaponDamage()+v;break;
-   case 'RaptorStrike':case 'MongooseBite':base=this.meleeDamage()+v;break;
+   case 'AimedShot':case 'SniperShot':base=this.weaponDamage(true)+v;break;
+   case 'RaptorStrike':base=this.meleeDamage()+v;break;
+   case 'MongooseBite':base=this.meleeDamage(false,true)+v;break;
    case 'WingClip':base=v;this.control('slow',10);this.debuffs.slowPercent=60;if(this.random()<this.pct('improvedWingClip'))this.control('root',5);break;
    case 'Counterattack':base=this.meleeDamage()*.5+v;this.control('root',5);this.counterUntil=0;break;
-   case 'StriderKick':base=this.meleeDamage();this.buff('strider',3);break;
+   case 'StriderKick':base=this.meleeDamage(false,true);this.buff('strider',3);break;
    case 'ScatterShot':base=this.weaponDamage()*.5;this.autoShot=false;this.autoWindupStart=null;break;
    case 'ConcussiveShot':this.control('slow',4);this.debuffs.slowPercent=50;if(this.random()<this.pct('improvedConcussiveShot'))this.control('stun',3);break;
    case 'DistractingShot':this.threat+=600;break;
@@ -250,7 +278,7 @@ export class Combat {
   if(base){
    let multiplier=this.damageMultiplier(id)*(id==='SummonHawk'?1+this.pct('unleashedFury'):1);
    if(this.auras.rapidKilling&&isShot(id)){multiplier*=1+this.pct('rapidKilling',1);delete this.auras.rapidKilling;if(this.rank('rapidRecuperation'))this.buff('killingRegen',15)}
-   const amount=this.rollDamage(base*multiplier,id,{landed:true});
+   const amount=this.rollDamage(base*multiplier,id,{landed:true,outcome});
    if(id==='MongooseBite'){this.mongooseUntil=0;if(this.rank('laceratingStrikes'))this.dot('Lacerating Strikes',amount*this.pct('laceratingStrikes')/7,3,21,{raw:true})}
   }
   if(id==='ScatterShot')this.control('scatter',4);
@@ -343,16 +371,20 @@ export class Combat {
   if(!this.options.sparring||this.targetHealth<=0||this.health<=0||this.auras.feign||['freeze','stun','scatter','fear','disarm'].some(k=>this.debuffs[k]>this.time))return;
   const petTarget=this.petActive()&&this.pet.order==='attack'&&this.petThreat>this.threat;
   if(!petTarget&&this.distance(p)>this.rangeFor('RaptorStrike'))return;
-  const dodge=.05+(petTarget&&this.pet.danceUntil>this.time?.5:0)+(this.aspect==='AspectOfTheMonkey'?(.08+this.pct('improvedAspectOfTheMonkey'))*(petTarget?.5:1):0)+(this.auras.deterrence&&!petTarget?.25:0);
-  const parry=petTarget?0:.05+this.pct('deflection')+(this.auras.deterrence?.25:0);
-  const roll=this.random(),miss=.05+(this.sting?.id==='ScorpidSting'?.02:0);
-  if(roll<miss)return;
-  if(roll<miss+dodge){if(!petTarget){this.mongooseUntil=this.time+RECORDS.DefensiveStateTriggered.durationMs/1000;this.mongooseSource='Dodge'}this.log('Dodged incoming attack');return}
-  if(roll<miss+dodge+parry){this.counterUntil=this.time+5;this.log('Parried incoming attack');return}
-  let damage=140*(this.options.enraged?1.5:1)*(this.debuffs.petWeaken?.8:1);
+  const defensePenalty=(this.loadout.target.level-60)*.002;
+  const dodge=(!petTarget&&!this.facing(p))?0:Math.max(0,(petTarget?.05:this.loadout.stats.dodge/100+(this.stats().agi-this.loadout.stats.agility)/2500)-defensePenalty)+(petTarget&&this.pet.danceUntil>this.time?.5:0)+(this.aspect==='AspectOfTheMonkey'?(.08+this.pct('improvedAspectOfTheMonkey'))*(petTarget?.5:1):0)+(this.auras.deterrence&&!petTarget?.25:0);
+  const parry=petTarget||!this.facing(p)?0:Math.max(0,this.loadout.stats.parry/100-defensePenalty)+this.pct('deflection')+(this.auras.deterrence?.25:0);
+  const roll=this.random(),miss=.05-defensePenalty+(this.sting?.id==='ScorpidSting'?.02:0);
+  if(roll<miss){this.log('Incoming attack missed','miss');if(!petTarget)this.textEvents.push({text:'Miss',kind:'miss',id:'Incoming',target:'player'});return;}
+  if(roll<miss+dodge){if(!petTarget){this.mongooseUntil=this.time+RECORDS.DefensiveStateTriggered.durationMs/1000;this.mongooseSource='Dodge'}this.log('Dodged incoming attack');if(!petTarget)this.textEvents.push({text:'Dodge',kind:'miss',id:'Incoming',target:'player'});return}
+  if(roll<miss+dodge+parry){this.counterUntil=this.time+5;this.nextMelee=parryHastedSwing(this.time,this.nextMelee,this.mainWeapon().speed/this.meleeHaste());this.log('Parried incoming attack');this.textEvents.push({text:'Parry',kind:'miss',id:'Incoming',target:'player'});return}
+  let damage=this.loadout.target.damage*(this.options.enraged?1.5:1)*(this.debuffs.petWeaken?.8:1);
+  const critical=roll<miss+dodge+parry+.05+defensePenalty;const crushing=!critical&&this.loadout.target.level===63&&roll<miss+dodge+parry+.05+defensePenalty+.15;
+  damage*=critical?2:crushing?1.5:1;
   if(petTarget){damage/=1+.15*(1+this.pct('enduranceTraining'));if(this.pet.defenseUntil>this.time)damage*=.5;this.pet.health=Math.max(0,this.pet.health-damage)}
-  else {this.health=Math.max(0,this.health-damage);if(['AspectOfTheCheetah','AspectOfThePack'].includes(this.aspect))this.buff('dazed',4*(1+this.pct('surefooted')))}
-  this.log((petTarget?'Pet':'Hunter')+' takes '+Math.round(damage),'error');
+  else {damage*=armorMultiplier(this.loadout.stats.armor,this.loadout.target.level);this.health=Math.max(0,this.health-damage);if(['AspectOfTheCheetah','AspectOfThePack'].includes(this.aspect))this.buff('dazed',4*(1+this.pct('surefooted')))}
+  this.log((petTarget?'Pet':'Hunter')+' takes '+Math.round(damage)+(critical?' (critical)':crushing?' (crushing)':''),'error');
+  if(!petTarget)this.textEvents.push({text:'−'+Math.round(damage)+(crushing?' crushing':''),kind:critical?'crit':'damage',id:'Incoming',target:'player'});
  }
  tickTraps(){
   for(const trap of this.traps){
@@ -370,10 +402,10 @@ export class Combat {
   this.traps=this.traps.filter(t=>t.until>this.time);
  }
  tick(dt,p,moving){
-  dt=clamp(dt,0,.05);this.time+=dt;this.moving=!!moving;
-  this.maxHealth=4000*(1+this.pct('survivalist'));this.health=Math.min(this.health,this.maxHealth);
+  dt=clamp(dt,0,.05);this.time+=dt;this.moving=!!moving;this.inFrontOfTarget=p.z>=0;
+  this.maxHealth=this.loadout.stats.health*(1+this.pct('survivalist'));this.health=Math.min(this.health,this.maxHealth);
   if(this.options.targetRegen&&this.targetHealth>0)this.targetHealth=Math.min(this.targetMaxHealth,this.targetHealth+dt*100*(this.debuffs.healingReduced?.5:1));
-  this.maxMana=3000+(this.stats().intellect-100)*15;
+  this.maxMana=this.loadout.stats.mana;
   const castingRegen=Math.min(1,this.pct('bestialDiscipline',1)+Math.max(this.auras.serpentRegen?this.pct('rapidRecuperation'):0,this.auras.killingRegen?this.pct('rapidRecuperation',1):0)+(this.auras.resourceful?.5:0));
   this.mana=Math.min(this.maxMana,this.mana+dt*22*(this.time-this.lastSpend>=5?1:castingRegen));
   if(this.value('spiritBond',1)&&this.nextSpirit>this.time+this.value('spiritBond',1))this.nextSpirit=this.time+this.value('spiritBond',1);
@@ -403,7 +435,7 @@ export class Combat {
   this.tickTraps();this.tickPet(dt,p);
   for(const hawk of this.hawks)if(this.time<hawk.until&&this.time>=hawk.next&&this.targetHealth>0){hawk.next=this.time+2/this.meleeHaste();this.rollDamage((45+252*2/14)*(1+this.pct('unleashedFury'))*this.damageMultiplier('Hawk'),'Hawk',{guardian:true})}
   this.hawks=this.hawks.filter(h=>h.until>this.time);
-  if(this.time>=this.nextIncoming){this.nextIncoming=this.time+2;this.incoming(p)}
+  if(this.time>=this.nextIncoming){this.nextIncoming=this.time+this.loadout.target.attackSpeed;this.incoming(p)}
   if(this.autoShot&&this.distance(p)<=this.rangeFor('RaptorStrike')){
    this.autoShot=false;this.autoStoppedInMelee=true;
    if(this.autoWindupStart!==null)this.weaving.windupClips++;
@@ -492,7 +524,7 @@ export class Combat {
       this.autoShot=false;
       this.weaving.melee();
       this.previousMelee=this.time;
-      this.nextMelee=this.time+2.4/this.meleeHaste();
+      this.nextMelee=this.time+this.mainWeapon().speed/this.meleeHaste();
       this.autoWindupStart=null;
       this.autoWindupEnd=0;
       this.autoResetByMelee=true;
@@ -504,8 +536,10 @@ export class Combat {
       if(id==='Melee')this.rollDamage(this.meleeDamage()*this.damageMultiplier('Melee Swing'),'Melee Swing');else this.resolve(id);
     }
     if(this.meleeAttack&&this.targetVisible()&&this.options.dualWield&&!this.cast&&player.targeted!==false&&this.facing(player)&&range<=this.rangeFor('RaptorStrike')&&this.targetHealth>0&&this.time>=this.nextOffhand){
-      this.nextOffhand=this.time+2.4/this.meleeHaste();
-      this.rollDamage(this.meleeDamage()*.5*(1+this.pct('predatorsEdge',1))*this.damageMultiplier('Offhand'),'Offhand');
+      this.previousOffhand=this.time;this.nextOffhand=this.time+this.loadout.offHand.speed/this.meleeHaste();
+      this.visualEvents.push({type:'offhand',id:'Offhand'});
+      this.autoResetByMelee=true;this.nextAuto=Infinity;this.autoRetryAt=null;
+      this.rollDamage(this.meleeDamage(true)*.5*(1+this.pct('predatorsEdge',1))*this.damageMultiplier('Offhand'),'Offhand');
     }
   }
 }
