@@ -90,12 +90,13 @@ test('movement cancels Auto Shot windup and melee white hits advance their timer
   assert.equal(combat.lastAutoShot,previous);
   assert.ok(combat.autoRetryAt>combat.time);
   const close={...player,z:4};
+  combat.startMelee(close);
   while(combat.time<5.5)combat.tick(0.05,close,false);
   assert.ok(combat.previousMelee>0);
   assert.ok(combat.nextMelee>combat.previousMelee);
   assert.ok(combat.events.some(e=>e.message.startsWith('Melee Swing')));
   assert.equal(combat.autoResetByMelee,true);
-  combat.tick(0.05,player,false);
+  combat.setAutoShot(true);combat.tick(0.05,player,false);
   assert.equal(combat.autoResetByMelee,false);
   assert.ok(combat.nextAuto-combat.time>2);
   assert.equal(combat.autoWindupStart,null);
@@ -124,6 +125,7 @@ test('ranged fire and melee swings emit timed visual cues',()=>{
   assert.ok(ranged.visualEvents.some(e=>e.type==='shoot'&&e.id==='AutoShot'));
   const melee=new Combat(()=>0.9);
   const close={...player,z:4};
+  melee.startMelee(close);
   while(melee.time<2.5)melee.tick(.05,close,false);
   assert.ok(melee.visualEvents.some(e=>e.type==='melee'&&e.id==='Melee'));
 });
@@ -229,7 +231,7 @@ test('combat reach changes both ranged boundaries and preserves the melee floor'
 });
 test('larger combat reach extends both weapon swings and dummy sparring',()=>{
  const small=new Combat(()=>.9),large=new Combat(()=>.9);
- for(const c of [small,large]){c.autoShot=false;c.options.dualWield=true;c.options.sparring=true}
+ for(const c of [small,large]){c.startMelee(player);c.options.dualWield=true;c.options.sparring=true}
  large.options.targetCombatReach=5;
  for(let i=0;i<60;i++)for(const c of [small,large])c.tick(.05,{...player,z:6.5},false);
  assert.equal(small.previousMelee,0);assert.equal(small.nextOffhand,2.4);assert.equal(small.health,small.maxHealth);

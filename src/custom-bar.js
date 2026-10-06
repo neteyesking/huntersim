@@ -1,9 +1,11 @@
 import {ACTIONS,SPELLS,describe,TALENT_GATES} from './catalog.js';
+import {EXTRA_ACTIONS,actionBinding} from './extra-actions.js';
 import {bindingLabel} from './bindings.js';
 
 export const BAR_STORAGE_KEY='hunter-action-bar-v1';
 export const DEFAULT_SLOTS=['AutoShot','HuntersMark','SerpentSting','MultiShot','ArcaneShot','RaptorStrike','MongooseBite','StriderKick','RapidFire','FeignDeath','AspectOfTheHawk','AspectOfTheBeast'];
-const allowed=new Set(['AutoShot',...ACTIONS.map(a=>a.id)]);
+const allowed=new Set(['AutoShot',...ACTIONS.map(a=>a.id),...EXTRA_ACTIONS.map(a=>a.id)]);
+const abilityName=id=>EXTRA_ACTIONS.find(a=>a.id===id)?.name||SPELLS[id]?.name;
 export function normalizeSlots(value){
  if(!Array.isArray(value))return [...DEFAULT_SLOTS];
  return Array.from({length:12},(_,i)=>allowed.has(value[i])?value[i]:null);
@@ -18,7 +20,7 @@ export function createCustomBar({app,storage,createButton,setModal,getBindings,g
  panel.innerHTML=`<div class="bar-editor-card"><div class="drawer-head"><div><div class="eyebrow">YOUR ABILITIES · YOUR ORDER</div><h2>Edit center bar</h2></div><button class="close" id="barEditorClose" aria-label="Close bar editor">×</button></div><p>Choose a slot, then choose an ability. Drag slots to swap them. Abilities keep their existing keybinds.</p><div id="barSlotGrid" aria-label="Ability slots"></div><div class="bar-editor-tools"><strong id="barSlotLabel"></strong><button id="barSlotLeft" class="inline" aria-label="Move selected slot left">←</button><button id="barSlotRight" class="inline" aria-label="Move selected slot right">→</button><button id="clearBarSlot" class="inline">Clear slot</button></div><div class="bar-search-row"><input id="barSearch" type="search" placeholder="Find an ability…" aria-label="Find an ability"><select id="barCategory" aria-label="Filter abilities by category"><option value="">All abilities</option></select></div><div id="barAbilityList"></div><div class="bar-editor-footer"><button id="resetBarSlots" class="inline">Restore default bar</button><span id="barSaveStatus" role="status">Saved in this browser</span><button id="barEditorDone" class="inline">Done</button></div></div>`;
  app.appendChild(panel);
  const $=id=>document.getElementById(id),byId=new Map();
- const choices=[{id:'AutoShot',category:'Attacks & control',tint:'#e2c38c'},...ACTIONS];
+ const choices=[{id:'AutoShot',category:'Attacks & control',tint:'#e2c38c'},...ACTIONS,...EXTRA_ACTIONS];
  for(const category of [...new Set(choices.map(a=>a.category))]){const o=document.createElement('option');o.value=o.textContent=category;$('barCategory').append(o)}
  function save(){try{storage.setItem(BAR_STORAGE_KEY,JSON.stringify(slots));$('barSaveStatus').textContent='Saved in this browser'}catch{$('barSaveStatus').textContent='Storage unavailable · changes last for this session'}}
  function renderBar(){
@@ -33,14 +35,14 @@ export function createCustomBar({app,storage,createButton,setModal,getBindings,g
   });
   refreshBindings();
  }
- function refreshBindings(){for(const [id,buttons] of byId)for(const b of buttons)b.querySelector('.action-key').textContent=getBindings()[id==='AutoShot'?'toggleAuto':'spell:'+id]?bindingLabel(getBindings()[id==='AutoShot'?'toggleAuto':'spell:'+id]):''}
+ function refreshBindings(){for(const [id,buttons] of byId)for(const b of buttons)b.querySelector('.action-key').textContent=getBindings()[actionBinding(id)]?bindingLabel(getBindings()[actionBinding(id)]):''}
  function renderEditor(){
-  $('barSlotLabel').textContent='Slot '+(selected+1)+' · '+(SPELLS[slots[selected]]?.name||'Empty');
+  $('barSlotLabel').textContent='Slot '+(selected+1)+' · '+(abilityName(slots[selected])||'Empty');
   $('barSlotLeft').disabled=selected===0;$('barSlotRight').disabled=selected===11;
   $('clearBarSlot').disabled=!slots[selected];$('barSlotGrid').replaceChildren();
   slots.forEach((id,index)=>{
    const b=document.createElement('button');b.className='bar-slot'+(index===selected?' selected':'');b.dataset.editSlot=index;b.draggable=true;
-   b.setAttribute('aria-pressed',String(index===selected));b.innerHTML='<small>'+(index+1)+'</small><span>'+(SPELLS[id]?.name||'Empty slot')+'</span>';
+   b.setAttribute('aria-pressed',String(index===selected));b.innerHTML='<small>'+(index+1)+'</small><span>'+(abilityName(id)||'Empty slot')+'</span>';
    b.onclick=()=>{selected=index;renderEditor()};
    b.ondragstart=e=>{dragged=index;e.dataTransfer.setData('text/plain',String(index));e.dataTransfer.effectAllowed='move'};
    b.ondragend=()=>{dragged=null};b.ondragover=e=>{if(dragged!==null)e.preventDefault()};
@@ -52,11 +54,11 @@ export function createCustomBar({app,storage,createButton,setModal,getBindings,g
  function renderChoices(){
   const search=$('barSearch').value.trim().toLowerCase(),category=$('barCategory').value;$('barAbilityList').replaceChildren();
   for(const a of choices){
-   const name=SPELLS[a.id]?.name||a.id;if(!name.toLowerCase().includes(search)||(category&&a.category!==category))continue;
-   const b=document.createElement('button');b.className='bar-choice';b.dataset.choice=a.id;b.title=describe(SPELLS[a.id]);
+   const name=abilityName(a.id)||a.id;if(!name.toLowerCase().includes(search)||(category&&a.category!==category))continue;
+   const b=document.createElement('button');b.className='bar-choice';b.dataset.choice=a.id;b.title=a.description||describe(SPELLS[a.id]);
    const label=document.createElement('strong');label.textContent=name;
    const note=document.createElement('span'),locked=TALENT_GATES[a.id]&&!getTalents()[TALENT_GATES[a.id]];
-   note.textContent=locked?'Requires talent · can still place':bindingLabel(getBindings()[a.id==='AutoShot'?'toggleAuto':'spell:'+a.id]);
+   note.textContent=locked?'Requires talent · can still place':bindingLabel(getBindings()[actionBinding(a.id)]);
    b.append(label,note);b.onclick=()=>{slots[selected]=a.id;changed()};$('barAbilityList').append(b);
   }
   if(!$('barAbilityList').childElementCount)$('barAbilityList').textContent='No matching abilities.';

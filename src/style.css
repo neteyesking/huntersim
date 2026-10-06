@@ -235,3 +235,47 @@
 .settings-card>small{font-size:10px;color:#91a99a}
 .telemetry-column[data-show-stats=false]>.status-card,.telemetry-column[data-show-stats=false]>.combat-log{display:none}
 @media(max-width:750px){.settings-card{padding:18px}.settings-card h2{font-size:23px}.top-actions{gap:3px}.top-actions button{padding:6px 4px;font-size:9px}}
+
+/* Compact unit frames, readable controls and a dedicated damage meter. */
+.topbar{height:52px;padding:8px 14px;background:#111315e8;border-bottom:1px solid #756b4d;backdrop-filter:none}
+.brand{font-size:14px;letter-spacing:.12em;gap:9px}.brand-mark{width:26px;height:26px;font-size:12px}.brand small{font-size:8px}
+.top-actions{gap:4px}.top-actions button{padding:6px 9px;font-size:11px;background:linear-gradient(#30312b,#191d1b);border-color:#665d47;border-radius:2px;letter-spacing:0}
+.player-panel,.target-panel{top:66px;bottom:auto;padding:10px 12px;background:#11181bf0;border:2px solid #696654;border-radius:3px;backdrop-filter:none;box-shadow:0 3px 10px #0008}
+.player-panel{left:14px;width:220px;min-width:0}.target-panel{left:246px;width:245px}
+.player-title strong,.target-title strong{font-family:Arial,sans-serif;font-size:15px;font-weight:bold}.eyebrow{letter-spacing:.06em;font-size:11px}
+.player-title,.target-title{margin:6px 0}.player-meta,.target-stats,.vitals{font-size:12px;color:#d4dfd7}
+.scale-note,.range-legend{display:none}.player-panel .pet-orders button{font-size:11px;padding:4px 6px}.meter{height:12px}
+.telemetry-column{top:66px;right:14px;bottom:auto;width:230px;max-height:32vh;overflow-y:auto}
+.telemetry-column>.status-card{display:none}.buff-bar{position:relative;padding:8px;background:#111b1df2;box-shadow:none;border-radius:2px}.buff-name{font-size:12px}.buff-time{font-size:11px}
+.bottom{min-height:0;gap:3px;padding:5px 10px 9px;background:transparent;pointer-events:none}.bottom>*{pointer-events:auto}
+.timer-bars,.weave-strip,#castWrap{width:min(360px,90vw)}.timer-row b{font-size:12px}.auto-track .bar-title{font-size:10px;letter-spacing:0}.weave-field>span,.weave-field>b{font-size:10px;letter-spacing:0}.windup-row>span{font-size:10px}
+#customActionBar{width:min(816px,calc(100vw - 24px));background:#121717ef;border:2px solid #726649;padding:4px;gap:3px}
+#customActionBar .action{height:59px;background:linear-gradient(#28302c,#111a1c);border-color:#827553}
+#customActionBar .action-name{font-size:10px;line-height:1.1;white-space:normal;display:block;max-height:23px}
+#customActionBar .action-glyph{font-size:23px;margin-top:2px;height:27px}
+#customActionBar .action-key{font-size:11px;color:#fff2c9;text-shadow:1px 1px #000}
+#customActionBar .action.aspect-action .action-name{display:grid;font-size:11px;max-height:none}
+.action[data-spell=MeleeAttack].queued::after{content:'ON'}
+.spell-tabs{gap:3px;margin:3px 0}.spell-tabs button{font-size:11px;padding:4px 7px;letter-spacing:0;background:#161e1d;border-color:#625c46}
+.hint{font-size:11px;color:#c6d1c6;text-shadow:1px 1px #000}.reticle span{font-size:10px;letter-spacing:.04em}
+.attack-controls{display:flex;gap:6px}.attack-controls button{border:1px solid #7e7150;border-radius:2px;background:linear-gradient(#36382d,#1c2522);color:#f2e2bd;font-size:12px;padding:5px 10px;text-shadow:1px 1px #000}
+.attack-controls [aria-pressed=true]{border-color:#d7b264;background:#574426}.attack-controls [aria-disabled=true]{color:#a49e8a}
+.dps-meter{position:absolute;right:14px;bottom:225px;width:250px;z-index:2;padding:9px;background:#10171bf2;border:2px solid #666454;border-radius:3px;color:#e7e8dc;box-shadow:0 4px 12px #0008}
+.dps-heading{display:flex;justify-content:space-between;font-size:11px;color:#dcc58d}.dps-heading strong{font-weight:600}.dps-heading span{font-variant-numeric:tabular-nums}
+.dps-total{display:flex;gap:5px;align-items:baseline;margin:7px 0}.dps-total b{font-size:23px;color:#f9e4aa;font-variant-numeric:tabular-nums}.dps-total>span{font-size:11px;color:#e1d6bc}.dps-total small{margin-left:auto;font-size:11px;color:#c1cbc6}
+.meter-rows{display:grid;gap:3px;max-height:145px;overflow:auto;scrollbar-width:thin}.meter-rows[data-empty=true]::before{content:'Attack the dummy to begin.';color:#c2c7b7;font-size:12px;padding:6px 0}
+.damage-row{position:relative;display:flex;justify-content:space-between;align-items:center;gap:5px;background:#1b2624;min-height:26px;padding:5px 6px;font-size:11px}
+.damage-row>i{position:absolute;inset:0 auto 0 0;background:#4666419e;pointer-events:none}.damage-row>span,.damage-row>b{position:relative;text-shadow:1px 1px #000}.damage-row>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.damage-row>b{flex-shrink:0;font-size:10px;font-weight:500;font-variant-numeric:tabular-nums}
+#meterDetails{margin-top:7px;border-top:1px solid #454e40;padding-top:7px;font-size:11px;color:#c9c9b0}#meterDetails>summary{cursor:pointer}
+.dps-meter .combat-log{position:static;display:block;max-height:220px;overflow:auto;width:auto;margin-top:8px;padding:0;border:0;background:transparent;box-shadow:none;backdrop-filter:none}
+.dps-meter .statline{font-size:11px;gap:8px;margin-top:8px}.dps-meter .statline strong{white-space:nowrap;font-size:11px}.dps-meter .log-row{font-size:11px}.dps-meter .telemetry-tabs{gap:12px}
+@media(max-width:1100px){.dps-meter{width:220px;right:10px}.player-panel{width:195px;left:10px}.target-panel{left:215px;width:220px}.telemetry-column{right:10px;width:210px}.top-actions button{font-size:10px;padding:6px}.brand small{display:none}}
+@media(max-width:750px){.player-panel{top:62px;width:175px}.target-panel{top:62px;left:195px;width:190px}.telemetry-column{top:235px;width:180px;max-height:180px}.dps-meter{bottom:265px;width:205px}.meter-rows{max-height:100px}#customActionBar{width:min(438px,96vw);grid-template-columns:repeat(6,minmax(0,1fr))}#customActionBar .action{height:53px}#customActionBar .action-name{font-size:10px}.topbar{padding:6px}.brand-mark{display:none}.brand{font-size:11px}.top-actions button{padding:5px 3px;font-size:9px}.spell-tabs button{font-size:10px}.player-meta{font-size:10px}.dps-meter .combat-log{max-height:120px}}
+
+.timer-row{grid-template-columns:44px 1fr 44px}.timer-icon{width:24px;justify-self:center}.windup-row>span{white-space:nowrap}
+.player-panel[data-pet-active=false] .pet-orders{display:none}
+.telemetry-column{bottom:225px;max-height:none;overflow:hidden;gap:12px}
+.telemetry-column>.buff-bar{flex:0 1 auto;min-height:0;max-height:38%;overflow:auto}
+.telemetry-column>.dps-meter{position:static;width:100%;margin-top:auto;max-height:68%;overflow-y:auto;flex-shrink:0;scrollbar-width:thin}
+.dps-meter .combat-log{max-height:135px}
+@media(max-width:750px){.telemetry-column{bottom:265px;max-height:none}.telemetry-column>.dps-meter{max-height:70%}.telemetry-column>.buff-bar{max-height:27%}}

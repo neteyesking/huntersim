@@ -10,21 +10,23 @@ ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThro
 const send=(method,params={})=>new Promise((resolve,reject)=>{const n=++id;pending.set(n,{resolve,reject});ws.send(JSON.stringify({id:n,method,params}))});
 const evaluate=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value};
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
-const movement=()=>evaluate("import('/src/main.js').then(m=>m.movementSnapshot())");
+const movement=()=>evaluate("import(document.querySelector('script[src*=\"/src/main.js\"]').src).then(m=>m.movementSnapshot())");
 const key=(type,code)=>send('Input.dispatchKeyEvent',{type,code,key:code==='Space'?' ':code.replace('Key','').toLowerCase()});
 const mouse=(type,x,y,button='none',buttons=0)=>send('Input.dispatchMouseEvent',{type,x,y,button,buttons,clickCount:1});
 const reset=async()=>{await evaluate("document.getElementById('resetBtn').click()");await wait(150)};
-const state=()=>evaluate("import('/src/main.js').then(m=>m.weavingSnapshot())");
+const state=()=>evaluate("import(document.querySelector('script[src*=\"/src/main.js\"]').src).then(m=>m.weavingSnapshot())");
 const until=async predicate=>{const deadline=Date.now()+18000;while(Date.now()<deadline){if(await predicate())return;await wait(35);}throw Error('Timed out waiting for weaving state');};
 try{
  await send('Runtime.enable');await send('Page.bringToFront');await send('Page.navigate',{url:gameUrl});await until(async()=>await evaluate("!!document.getElementById('autoTrackToggle')"));await wait(500);await reset();
  await until(async()=>(await state()).stats.shots>=1);
  await key('keyDown','KeyW');await until(async()=>(await movement()).player.z<=4.7);await key('keyUp','KeyW');
+ await evaluate("document.getElementById('meleeAttackBtn').click()");
  await until(async()=>(await state()).stats.active?.swings>=1);
  assert.equal((await state()).timer.progress,0);
  assert.equal(await evaluate("document.getElementById('autoBar').style.width"),'0%');
  const boundary=(await state()).rangedMin;
  await key('keyDown','KeyS');await until(async()=>(await movement()).player.z>=boundary+.15);
+ await evaluate("document.getElementById('autoTrackToggle').click()");await wait(40);
  assert.equal((await state()).timer.phase,'swing');
  const returning=await state();
  await key('keyUp','KeyS');await wait(50);
@@ -35,7 +37,7 @@ try{
  assert.equal(await evaluate("document.getElementById('completedWeaves').textContent"),'1');
  assert.ok((await evaluate("document.getElementById('lastAverageDelay').textContent")).includes('s / '));
  const screenshot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-weaving-stats.png',Buffer.from(screenshot.data,'base64'));
- await evaluate("document.getElementById('combatLogTab').click()");assert.equal(await evaluate("document.getElementById('combatLogBody').classList.contains('hidden')"),false);
+ await evaluate("document.getElementById('meterDetails').open=true;document.getElementById('combatLogTab').click()");assert.equal(await evaluate("document.getElementById('combatLogBody').classList.contains('hidden')"),false);
  await evaluate("document.getElementById('weavingTab').click()");await reset();assert.equal((await state()).stats.weaves,0);
  await evaluate("document.getElementById('autoTrackToggle').click()");await wait(100);
  assert.equal(await evaluate("document.getElementById('autoTrackToggle').getAttribute('aria-pressed')"),'false');

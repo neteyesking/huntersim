@@ -139,7 +139,7 @@ test('self buffs work without a target and each active talent spell is gated',()
  const c=quiet();assert.equal(c.castSpell('AspectOfTheMonkey',{...ranged,targeted:false}),true);
 });
 test('melee requires facing the target',()=>{
- const m=quiet();m.nextMelee=0;advance(m,3,{...melee,yaw:0});assert.equal(m.damage,0);
+ const m=quiet();m.nextMelee=0;m.startMelee(melee);advance(m,3,{...melee,yaw:0});assert.equal(m.damage,0);
 });
 
 test('Revive and Mend Pet talents change cast, cost, restored health and cleanse',()=>{

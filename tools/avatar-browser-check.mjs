@@ -43,6 +43,7 @@ try{
  await untilPose('melee-ready');
  const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/hunter-avatar-game.png',Buffer.from(shot.data,'base64'));
  await key('keyDown','KeyS');await until("import(document.querySelector('script[src*=\"/src/main.js\"]').src).then(m=>m.movementSnapshot().player.z>11.2)");await key('keyUp','KeyS');
+ await evaluate("document.getElementById('autoTrackToggle').click()");
  await untilPose('bow-draw');await untilPose('bow-release');
  assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',draw,release,strike,runtimeErrors:errors.length}));
 }finally{await key('keyUp','KeyW');await key('keyUp','KeyS');ws.close();await fetch(debug+'/json/close/'+tab.id)}

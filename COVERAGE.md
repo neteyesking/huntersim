@@ -136,3 +136,5 @@ Sparring attacks every two seconds while the hunter is in melee range or an atta
 ## Next work for another chat
 
 Read AGENTS.md, this document and the relevant Forever spell implementation first. Work in **HunterSimGame**, regardless of the initial working directory. Extend the existing handler and focused tests together. Do not make an unimplemented effect appear selectable without a corresponding state or gameplay effect. Preserve source uncertainty in the coverage notes.
+
+Attack and Raptor + Kick are interface commands, separate from the 60 spell records. Attack explicitly enables melee white swings and disables Auto Shot; walking into range does not attack by itself. The macro attempts normal Raptor Strike queuing and Strider Kick casting, preserving each component’s requirements. Manually enabling Auto Shot ends melee and clears the Raptor queue.

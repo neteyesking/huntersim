@@ -6,11 +6,11 @@ const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);
 function advance(c,seconds,p=ranged,moving=false){for(let i=0;i<Math.round(seconds/.01);i++)c.tick(.01,p,moving);}
 function nextShot(c,p=ranged){const last=c.lastAutoShot;for(let i=0;i<1500&&c.lastAutoShot===last;i++)c.tick(.01,p,false);assert.notEqual(c.lastAutoShot,last);}
 
-test('returning to range while moving starts one Auto Shot cycle including windup',()=>{
+test('manually resuming in range starts one Auto Shot cycle including windup',()=>{
  const c=new Combat(()=>.9);nextShot(c);advance(c,2);const first=c.lastAutoShot,expected=c.expectedAutoShotAt;
- c.tick(.01,melee,true);advance(c,.2,melee);
- assert.equal(c.autoResetByMelee,true);assert.equal(c.autoTimer().progress,0);assert.equal(c.autoTimer().phase,'waiting');
- c.tick(.01,ranged,true);const start=c.time;assert.equal(c.autoTimer().progress,0);
+ c.startMelee(melee);c.tick(.01,melee,true);advance(c,.2,melee);
+ assert.equal(c.autoResetByMelee,true);assert.equal(c.autoTimer().progress,0);assert.equal(c.autoTimer().phase,'off');
+ c.setAutoShot(true);c.tick(.01,ranged,true);const start=c.time;assert.equal(c.autoTimer().progress,0);
  assert.equal(c.autoResetByMelee,false);
  near(c.autoSwingStart,start);near(c.autoTimer().progress,0);near(c.autoTimer().remaining,2.8);
  near(c.expectedAutoShotAt,expected);near(c.lastAutoShot,first);
@@ -54,8 +54,8 @@ test('an excursion without a main-hand swing is not counted as a completed weave
 });
 test('white and queued Raptor Strike swing attempts contribute to weave stats',()=>{
  const c=new Combat(()=>0);nextShot(c);advance(c,2);
- c.raptorQueued=true;c.tick(.01,melee,false);advance(c,2.5,melee);
- c.tick(.01,ranged,false);nextShot(c);
+ c.castSpell('RaptorStrike',melee);c.tick(.01,melee,false);advance(c,2.5,melee);
+ c.setAutoShot(true);c.tick(.01,ranged,false);nextShot(c);
  const stats=c.weaving.snapshot(c.time,c.expectedAutoShotAt);
  assert.equal(stats.weaves,1);assert.equal(stats.lastWeave.swings,2);
  assert.equal(stats.averageSwings,2);
@@ -77,9 +77,9 @@ test('a 3.0 second weapon releases every 3.0 seconds with the final 0.5 seconds 
 });
 test('manual re-enable after melee resumes one 3.0 second cycle and never adds a second full wait',()=>{
  const c=new Combat(()=>.9,{rangedWeaponSpeed:3});nextShot(c);advance(c,2);
- c.tick(.01,melee,false);assert.equal(c.autoResetByMelee,true);
+ c.startMelee(melee);c.tick(.01,melee,false);assert.equal(c.autoResetByMelee,true);
  c.autoShot=false;const last=c.lastAutoShot;advance(c,4,ranged);near(c.lastAutoShot,last);assert.equal(c.autoTimer().phase,'off');
- c.autoShot=true;c.tick(.01,ranged,true);const start=c.time;
+ c.setAutoShot(true);c.tick(.01,ranged,true);const start=c.time;
  near(c.autoTimer().duration,3);near(c.nextAuto-start,2.5);
  advance(c,1,ranged,true);advance(c,1.49);assert.equal(c.autoWindupStart,null);
  advance(c,.01);near(c.autoWindupStart-start,2.5);

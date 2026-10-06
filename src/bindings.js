@@ -21,7 +21,7 @@ export const BINDING_GROUPS = [
     ['spell:AspectOfTheBeast','Aspect of the Beast','Equal'],
   ]},
   {name:'Interface and encounter', items:[
-    ['toggleAuto','Toggle Auto Shot','KeyT'],['toggleHitboxes','Toggle hitboxes','KeyH'],
+    ['toggleAuto','Toggle Auto Shot','KeyT'],['toggleMelee','Toggle melee attack','KeyR'],['weaveCombo','Raptor Strike + Strider Kick macro','Shift+KeyR'],['toggleHitboxes','Toggle hitboxes','KeyH'],
     ['howTo','Open weaving guide','F2'],['loadSvWeave','Load SV Weave and reset encounter',''],
     ['talents','Open talents','KeyK'],['controls','Open controls','F1'],
     ['keybinds','Open keybinds','KeyB'],['closePanel','Close panel','Escape'],

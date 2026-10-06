@@ -18,7 +18,7 @@ try{
  await evaluate("document.getElementById('editBarBtn').click();document.getElementById('resetBarSlots').click()");
  assert.equal(await evaluate("document.querySelectorAll('#barSlotGrid button').length"),12);
  await evaluate("document.querySelector('[data-edit-slot=\"3\"]').click();document.getElementById('barSearch').value='raptor';document.getElementById('barSearch').dispatchEvent(new Event('input'))");
- assert.equal(await evaluate("document.querySelectorAll('.bar-choice').length"),1);
+ assert.equal(await evaluate("document.querySelectorAll('.bar-choice').length"),2);
  await evaluate("document.querySelector('[data-choice=RaptorStrike]').click();document.getElementById('barSlotLeft').click()");
  assert.equal(await evaluate("document.querySelector('#customActionBar [data-slot=\"2\"]').dataset.spell"),'RaptorStrike');
  await evaluate("document.getElementById('clearBarSlot').click()");

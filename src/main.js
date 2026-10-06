@@ -11,6 +11,8 @@ import {createNameplate,targetDebuffs,auraTime} from './nameplate.js';
 import {layoutCombatText} from './combat-text-layout.js';
 import {BINDING_GROUPS, DEFAULT_BINDINGS, eventChord, mouseChord, wheelChord, bindingLabel, actionForChord, held, rebind, loadBindings, saveBindings} from './bindings.js';
 import {PET_FAMILIES, RECORDS, changeTalent, validTalents, describe} from './catalog.js';
+import {createDpsMeter} from './dps-meter.js';
+import {EXTRA_ACTIONS,actionBinding} from './extra-actions.js';
 import {createBuffBar} from './player-buffs.js';
 import {createCustomBar} from './custom-bar.js';
 import {loadSettings,saveSettings,createSettingsPanel} from './settings.js';
@@ -34,12 +36,15 @@ app.innerHTML=`
 <div class="statline" title="Auto Shot windups interrupted by movement, facing, or range loss"><span>Interrupted windups</span><strong id="windupClips">0</strong></div>
 <div id="weaveSession" class="weave-session">Shoot, weave in, then return.</div></div><div id="combatLogBody" class="hidden"><div id="logRows"></div></div></div></div>
 <div class="reticle"><div class="reticle-ring"></div><span id="reticleText">TARGET LOCKED</span></div>
-<div class="bottom"><div id="weaveStrip" class="weave-strip"><span class="weave-icon">➶</span><div class="weave-field"><i id="weaveFill"></i><span id="weaveZone">RANGED</span><b id="weaveCue">WAIT</b></div><span class="weave-icon melee-icon">⚔</span></div><div class="timer-bars"><div class="timer-row auto-row"><button class="timer-icon" id="autoTimerToggle" aria-label="Toggle Auto Shot">➶</button><button type="button" id="autoTrackToggle" class="timer-track auto-track" aria-label="Toggle Auto Shot"><i id="autoBar"></i><em id="multiTick" class="timer-tick multi-tick" title="Multi-Shot cast plus windup"></em><em id="windupTick" class="timer-tick windup-tick" title="Auto Shot windup begins"></em><span class="bar-title" id="autoTrackLabel">AUTO ON · STOP</span><span class="bar-delay" id="autoDelay">+0.00</span></button><b id="autoBarText">0.5s</b></div><div class="timer-row windup-row"><span>WINDUP</span><div class="timer-track windup-track"><i id="windupBar"></i></div><b id="windupBarText">WAITING</b></div><div class="timer-row melee-row"><span class="timer-icon melee-icon">⚔</span><div class="timer-track melee-track"><i id="meleeBar"></i></div><b id="meleeBarText">2.4s</b></div></div><div id="castWrap"><div id="castLabel"></div><div class="cast-track"><i id="castFill"></i><i id="castWindupFill"></i><em id="castBoundary"></em></div></div><div id="spellTabs" class="spell-tabs"></div><div id="actionBar"></div><div class="hint" id="controlHint"></div></div>
+<div class="bottom"><div id="weaveStrip" class="weave-strip"><span class="weave-icon">➶</span><div class="weave-field"><i id="weaveFill"></i><span id="weaveZone">RANGED</span><b id="weaveCue">WAIT</b></div><span class="weave-icon melee-icon">⚔</span></div><div class="timer-bars"><div class="timer-row auto-row"><button class="timer-icon" id="autoTimerToggle" aria-label="Toggle Auto Shot">➶</button><button type="button" id="autoTrackToggle" class="timer-track auto-track" aria-label="Toggle Auto Shot"><i id="autoBar"></i><em id="multiTick" class="timer-tick multi-tick" title="Multi-Shot cast plus windup"></em><em id="windupTick" class="timer-tick windup-tick" title="Auto Shot windup begins"></em><span class="bar-title" id="autoTrackLabel">AUTO ON · STOP</span><span class="bar-delay" id="autoDelay">+0.00</span></button><b id="autoBarText">0.5s</b></div><div class="timer-row windup-row"><span>WINDUP</span><div class="timer-track windup-track"><i id="windupBar"></i></div><b id="windupBarText">WAITING</b></div><div class="timer-row melee-row"><span class="timer-icon melee-icon">⚔</span><div class="timer-track melee-track"><i id="meleeBar"></i></div><b id="meleeBarText">2.4s</b></div></div><div id="castWrap"><div id="castLabel"></div><div class="cast-track"><i id="castFill"></i><i id="castWindupFill"></i><em id="castBoundary"></em></div></div><div class="attack-controls"><button id="meleeAttackBtn">Attack</button><button id="weaveComboBtn">Raptor + Kick</button></div><div id="spellTabs" class="spell-tabs"></div><div id="actionBar"></div><div class="hint" id="controlHint"></div></div>
 <div id="toast"></div>
 <div id="talentPanel" class="drawer hidden"><div class="drawer-head"><div><div class="eyebrow">BUILD YOUR HUNTER</div><h2>Talents <span id="talentPoints">0 / 51</span></h2></div><button class="close" id="talentClose">×</button></div><p class="drawer-intro">All 51 talents use Forever rank data. Left click to learn; right click to refund. Tier requirements, prerequisites and the 51 point budget are enforced. Builds save in this browser.</p><div class="preset-controls"><button class="inline" id="svPreset">Load SV Weave &amp; reset</button><span id="buildLabel"></span></div><div id="talentTrees"></div><button class="inline" id="clearTalents">Clear talents</button></div>
 <div id="helpPanel" class="modal hidden"><div class="help-card"><button class="close" id="helpClose">×</button><div class="eyebrow">FIELD GUIDE</div><h2>Hunter controls</h2><p>Left click the dummy to target it; left click empty ground to clear the target. Move and face the stationary dummy. Auto Shot uses its nominal range plus both combat reaches: 11–38 yd with default human reach. Melee reaches 5 yd by default and extends with larger combat reach. Adjust Target combat reach in Training; the colored ground zones update. Face the target and keep enough mana. Moving during a cast interrupts it.</p><div class="help-grid" id="helpGrid"></div><button class="inline" id="helpBindings">Edit keybinds</button><button id="helpPlay">Enter the ground</button></div></div><div id="keybindPanel" class="modal hidden"><div class="keybind-card"><div class="drawer-head"><div><div class="eyebrow">CUSTOMIZE CONTROLS</div><h2>Keybinds</h2></div><button class="close" id="keybindClose">×</button></div><p>Click a binding, then press a key, mouse button or wheel direction. Backspace clears it. Escape cancels capture.</p><div id="bindingConflict" class="binding-conflict hidden"></div><div id="bindingGroups"></div><div class="keybind-actions"><button class="inline" id="restoreBindings">Restore defaults</button><button class="inline" id="keybindDone">Done</button></div></div></div>`;
 
 const $=id=>document.getElementById(id);
+const meterHost=document.createElement('section');meterHost.id='dpsMeter';meterHost.className='dps-meter';app.append(meterHost);
+document.querySelector('.telemetry-column').append(meterHost);
+const drawDpsMeter=createDpsMeter(meterHost);$('meterDetails').append(document.querySelector('.combat-log'));
 const combat=new Combat();
 let preferences=loadSettings(window.localStorage);
 combat.options={...preferences.training};combat.petFamily=preferences.petFamily;combat.petAutocast=preferences.petAutocast;combat.aspect=preferences.aspect;combat.tracking=preferences.tracking;
@@ -165,15 +170,15 @@ function showToast(text){$('toast').textContent=text;$('toast').classList.add('v
 function fire(id){const before=combat.events[0];if(!combat.castSpell(id,player)&&combat.events[0]!==before)showToast(combat.events[0].message);if(id.startsWith('Aspect')||id.startsWith('Track'))persistPreferences()}
 const buttons=new Map();
 let actionPage='Custom';
-for(const name of ['Custom',...new Set(ACTIONS.map(a=>a.category))]){
+for(const name of ['Custom',...new Set([...ACTIONS,...EXTRA_ACTIONS].map(a=>a.category))]){
  const tab=document.createElement('button');tab.textContent=name;tab.onclick=()=>selectPage(name);$('spellTabs').appendChild(tab);
 }
-function selectPage(name){actionPage=name;customBar.host.hidden=name!=='Custom';$('actionBar').hidden=name==='Custom';for(const a of ACTIONS)buttons.get(a.id).hidden=a.category!==name;for(const b of $('spellTabs').children)b.classList.toggle('active',b.textContent===name)}
+function selectPage(name){actionPage=name;customBar.host.hidden=name!=='Custom';$('actionBar').hidden=name==='Custom';for(const a of [...ACTIONS,...EXTRA_ACTIONS])buttons.get(a.id).hidden=a.category!==name;for(const b of $('spellTabs').children)b.classList.toggle('active',b.textContent===name)}
 
 function createActionButton(action){const b=document.createElement('button');b.className='action'+(action.id.startsWith('Aspect')?' aspect-action':'');b.style.setProperty('--tint',action.tint);
- const glyph=action.id==='MultiShot'?'<svg class="multi-shot-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 38 26 17m-8 0h8v8M12 42 33 21m-8 0h8v8M19 46 40 25m-8 0h8v8"/></svg>':action.id==='RapidFire'?'✷':action.id.includes('Sting')?'♜':action.id.includes('Aspect')?'◇':action.id==='HuntersMark'?'◎':'➶';
- b.innerHTML=`<span class="action-key">${bindingLabel(bindings['spell:'+action.id])}</span><span class="action-glyph">${glyph}</span><span class="action-name">${SPELLS[action.id]?.name||action.id}</span><span class="action-sweep"></span><span class="action-cooldown"></span>`;b.dataset.spell=action.id;b.dataset.description=describe(SPELLS[action.id]);b.title=b.dataset.description;b.onclick=()=>fire(action.id);return b}
-for(const action of ACTIONS){const b=createActionButton(action);$('actionBar').appendChild(b);buttons.set(action.id,b)}
+ const glyph=action.id==='MultiShot'?'<svg class="multi-shot-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 38 26 17m-8 0h8v8M12 42 33 21m-8 0h8v8M19 46 40 25m-8 0h8v8"/></svg>':['MeleeAttack','WeaveCombo','RaptorStrike','StriderKick'].includes(action.id)?'⚔':action.id==='RapidFire'?'✷':action.id.includes('Sting')?'♜':action.id.includes('Aspect')?'◇':action.id==='HuntersMark'?'◎':'➶';
+ b.innerHTML=`<span class="action-key">${bindingLabel(bindings[actionBinding(action.id)])}</span><span class="action-glyph">${glyph}</span><span class="action-name">${action.name||SPELLS[action.id]?.name||action.id}</span><span class="action-sweep"></span><span class="action-cooldown"></span>`;b.dataset.spell=action.id;b.dataset.description=action.description||describe(SPELLS[action.id]);b.title=b.dataset.description;b.onclick=()=>EXTRA_ACTIONS.some(a=>a.id===action.id)?command(actionBinding(action.id)):fire(action.id);return b}
+for(const action of [...ACTIONS,...EXTRA_ACTIONS]){const b=createActionButton(action);$('actionBar').appendChild(b);buttons.set(action.id,b)}
 const customBar=createCustomBar({app,storage:window.localStorage,createButton:createActionButton,setModal,getBindings:()=>bindings,getTalents:()=>combat.talents,toggleAuto:()=>$('autoBtn').click()});
 const editBar=document.createElement('button');editBar.id='editBarBtn';editBar.textContent='Edit bar';editBar.onclick=()=>{selectPage('Custom');customBar.open()};$('spellTabs').append(editBar);
 selectPage('Custom');
@@ -194,7 +199,7 @@ function renderHelp(){
   ['cameraOrbit','Orbit camera'],['cameraSteer','Turn hunter and camera'],
   ['zoomIn','Zoom in'],['zoomOut','Zoom out'],
   ['autorun','Toggle autorun'],['walk','Toggle walk / run'],['jump','Jump'],
-  ['toggleAuto','Toggle Auto Shot'],
+  ['toggleAuto','Toggle Auto Shot'],['toggleMelee','Toggle melee attack'],['weaveCombo','Raptor Strike + Strider Kick'],
  ];
  const host=$('helpGrid');host.replaceChildren();
  for(const [id,description] of rows){
@@ -223,7 +228,7 @@ function renderBindings(){
 }
 function refreshBindingLabels(){
  customBar.refreshBindings();
- for(const action of ACTIONS)buttons.get(action.id).querySelector('.action-key').textContent=bindingLabel(bindings['spell:'+action.id]);
+ for(const action of [...ACTIONS,...EXTRA_ACTIONS])buttons.get(action.id).querySelector('.action-key').textContent=bindingLabel(bindings[actionBinding(action.id)]);
  $('guideKeys').textContent=['RaptorStrike','MongooseBite','StriderKick','SerpentSting','ArcaneShot','MultiShot'].map(id=>(SPELLS[id]?.name||id)+': '+bindingLabel(bindings['spell:'+id])).join(' · ');
  $('autoKey').textContent=bindingLabel(bindings.toggleAuto);
  $('controlHint').textContent=`${bindingLabel(bindings.forward)} / ${bindingLabel(bindings.backward)} move · ${bindingLabel(bindings.turnLeft)} / ${bindingLabel(bindings.turnRight)} turn · ${bindingLabel(bindings.strafeLeft)} / ${bindingLabel(bindings.strafeRight)} strafe · ${bindingLabel(bindings.keybinds)} keybinds`;
@@ -260,6 +265,8 @@ function command(id){
  if(id==='jump'){if(player.height===0&&player.jumpVelocity===0)jumpRequested=true;return}
  if(id==='autorun'){autorun=!autorun;return}
  if(id==='walk'){walking=!walking;showToast(walking?'Walking':'Running');return}
+ if(id==='toggleMelee'){if(!combat.toggleMelee(player))showToast('Select a living target to attack');return}
+ if(id==='weaveCombo'){if(!combat.weaveCombo(player))showToast(combat.events[0].message);return}
  if(id==='toggleAuto'){$('autoBtn').click();return}
  if(id==='toggleHitboxes'){$('hitboxBtn').click();return}
  if(id==='talents'){$('talentBtn').click();return}
@@ -290,8 +297,9 @@ $('svPreset').onclick=$('guidePreset').onclick=()=>{
 $('helpBtn').onclick=()=>setModal('helpPanel',true);
 $('helpClose').onclick=$('helpPlay').onclick=()=>setModal('helpPanel',false);
 $('resetBtn').onclick=()=>{combat.reset();combat.aspect=preferences.aspect;combat.tracking=preferences.tracking;player.x=0;player.z=18;player.yaw=Math.PI;player.height=0;player.jumpVelocity=0;player.horizX=0;player.horizZ=0;player.arcDirsSet=false;setTargeted(true);jumpRequested=false;clearCombatText();rig.reset();modelYaw=Math.PI;walking=false;gestures.clear();autorun=false;attackMotion.shoot=null;attackMotion.melee=null;combat.visualEvents.length=0;lastHudRange=18;for(const p of projectiles){scene.remove(p.mesh);disposeProjectile(p.mesh)}projectiles.length=0;showToast('Encounter reset')};
+$('meleeAttackBtn').onclick=()=>command('toggleMelee');$('weaveComboBtn').onclick=()=>command('weaveCombo');
 $('autoTimerToggle').onclick=$('autoTrackToggle').onclick=()=>$('autoBtn').click();
-$('autoBtn').onclick=()=>{combat.autoShot=!combat.autoShot;showToast('Auto Shot '+(combat.autoShot?'on':'off'))};
+$('autoBtn').onclick=()=>{combat.setAutoShot(!combat.autoShot);showToast('Auto Shot '+(combat.autoShot?'on':'off'))};
 $('hitboxBtn').onclick=()=>{const visible=!targetHitbox.visible;targetHitbox.visible=visible;playerHitbox.visible=visible;$('hitboxBtn').textContent=visible?'Hide hitboxes':'Show hitboxes';preferences.hitboxes=visible;persistPreferences()};
 $('clearTalents').onclick=()=>{combat.talents={};saveTalents();renderTalents()};
 function saveTalents(){try{localStorage.setItem('hunter-talents-v2',JSON.stringify(combat.talents));return true}catch{return false}}
@@ -479,8 +487,22 @@ function frame(now){
  renderer.render(scene,camera);
  requestAnimationFrame(frame);
 }
+function updateAttackControls(){
+ const raptor=combat.abilityState('RaptorStrike',player),kick=combat.abilityState('StriderKick',player);
+ $('meleeAttackBtn').textContent=(combat.meleeAttack?'Stop attack':'Attack')+' ['+bindingLabel(bindings.toggleMelee)+']';$('meleeAttackBtn').setAttribute('aria-pressed',String(combat.meleeAttack));
+ $('weaveComboBtn').textContent='Raptor + Kick ['+bindingLabel(bindings.weaveCombo)+']';
+ $('weaveComboBtn').title=EXTRA_ACTIONS[1].description+'\nRaptor: '+(raptor.queued?'queued':raptor.usable?'ready':raptor.reason)+' · Kick: '+(kick.usable?'ready':kick.reason);
+ $('weaveComboBtn').setAttribute('aria-disabled',String(!raptor.usable&&!kick.usable));
+ for(const action of EXTRA_ACTIONS)for(const b of [buttons.get(action.id),...customBar.buttonsFor(action.id)]){
+  const attack=action.id==='MeleeAttack',enabled=attack?combat.meleeAttack:combat.raptorQueued;
+  const usable=attack?(combat.meleeAttack||player.targeted&&combat.health>0&&combat.targetHealth>0&&combat.targetVisible()):raptor.usable||kick.usable;
+  b.classList.toggle('queued',enabled);b.classList.toggle('unavailable',!usable);b.setAttribute('aria-disabled',String(!usable));b.setAttribute('aria-pressed',String(enabled));b.title=attack?action.description:$('weaveComboBtn').title;
+  if(!attack){const cd=Math.max(0,Math.min((combat.cooldowns.RaptorStrike||0)-combat.time,(combat.cooldowns.StriderKick||0)-combat.time));b.querySelector('.action-cooldown').textContent=cd>0?cd.toFixed(1):''}
+ }
+}
 function updateHud(){
  $('hunterVitals').textContent='Health '+Math.ceil(combat.health)+' / '+Math.ceil(combat.maxHealth)+' · Mana regen '+(combat.time-combat.lastSpend<5?'casting':'full');
+ document.querySelector('.player-panel').dataset.petActive=String(combat.petActive());
  $('petVitals').textContent=combat.petActive()?PET_FAMILIES[combat.pet.family].name+' · '+Math.ceil(combat.pet.health)+' HP · '+Math.floor(combat.pet.focus)+' focus · '+combat.pet.order:combat.pet?.health<=0?'Pet defeated · use Revive Pet':'No active pet · call one from Pets';
  const visible=combat.targetVisible();target.visible=visible;
  selectionRing.visible=player.targeted&&visible;
@@ -495,7 +517,8 @@ function updateHud(){
  $('timeText').textContent=Math.floor(combat.time/60)+':'+String(Math.floor(combat.time%60)).padStart(2,'0');
  $('damageText').textContent=Math.floor(combat.damage).toLocaleString();$('dpsText').textContent=Math.floor(combat.damage/Math.max(combat.time,1)).toLocaleString();
  $('aspectText').textContent=SPELLS[combat.aspect]?.name||'Aspect of the Hawk';$('rapidText').textContent=combat.auras.rapidFire?'Rapid Fire '+Math.ceil(combat.auras.rapidFire-combat.time)+'s':'';
- drawBuffBar(combat);
+ drawBuffBar(combat);drawDpsMeter(combat);
+ updateAttackControls();
  customBar.updateAuto(combat.autoShot);
  $('autoText').textContent=!combat.autoShot?'OFF':range<combat.minRangeFor('AutoShot')?'ON · WAITING FOR RANGE':'ON';
  $('autoBtnLabel').textContent=combat.autoShot?'Stop Auto Shot':'Start Auto Shot';
@@ -583,7 +606,7 @@ function updateHud(){
  $('windupBarText').textContent=winding?Math.max(0,windupEnd-combat.time).toFixed(1)+'s':'WAITING';
  const meleeDuration=Math.max(0.01,combat.nextMelee-combat.previousMelee);
  $('meleeBar').style.width=Math.max(0,Math.min(100,100*(combat.time-combat.previousMelee)/meleeDuration))+'%';
- $('meleeBarText').textContent=combat.time>=combat.nextMelee?'READY':(combat.nextMelee-combat.time).toFixed(1)+'s'; for(const action of ACTIONS){
+ $('meleeBarText').textContent=!combat.meleeAttack?'OFF':combat.time>=combat.nextMelee?'READY':(combat.nextMelee-combat.time).toFixed(1)+'s'; for(const action of ACTIONS){
   for(const b of [buttons.get(action.id),...customBar.buttonsFor(action.id)]){
   const cd=Math.max(0,(combat.cooldowns[action.id]||0)-combat.time);
   const gcd=!SPELLS[action.id].gcdMs?0:Math.max(0,combat.gcdUntil-combat.time);
@@ -658,7 +681,7 @@ function persistPreferences(){preferences=currentSettings();const saved=saveSett
 function applyPreferences(value){
  preferences=value;combat.options={...value.training};combat.petFamily=value.petFamily;combat.petAutocast=value.petAutocast;combat.aspect=value.aspect;combat.tracking=value.tracking;
  if(combat.pet)combat.pet.autocast=value.petAutocast;
- $('buffBar').hidden=!value.showBuffs;document.querySelector('.telemetry-column').dataset.showStats=String(value.showStats);
+ $('buffBar').hidden=!value.showBuffs;$('dpsMeter').hidden=!value.showStats;document.querySelector('.telemetry-column').dataset.showStats=String(value.showStats);
  targetHitbox.visible=playerHitbox.visible=value.hitboxes;$('hitboxBtn').textContent=value.hitboxes?'Hide hitboxes':'Show hitboxes';
 }
 const settingsPanel=createSettingsPanel({app,storage:window.localStorage,setModal,getSettings:currentSettings,

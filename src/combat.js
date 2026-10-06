@@ -1,3 +1,4 @@
+import {DamageMeter} from './damage-meter.js';
 import {WeavingStats} from './weaving.js';
 import {attackRange,centerDistance,DEFAULT_TARGET_COMBAT_REACH} from './scale.js';
 import {SPELLS,TREES,ACTIONS,RECORDS,PET_FAMILIES,MELEE,TRAPS,CHANNELS,TALENT_GATES,isShot,isHostile,talentValue} from './catalog.js';
@@ -8,8 +9,8 @@ const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin'
 export class Combat {
  constructor(random=Math.random,{rangedWeaponSpeed=2.8}={}){this.rangedWeaponSpeed=rangedWeaponSpeed;this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
  reset(){
-  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
-  this.weaving=new WeavingStats();
+  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,meleeAttack:false,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
+  this.weaving=new WeavingStats();this.meter=new DamageMeter();
   this.log('Training begins.');
  }
  log(message,kind='info'){this.events.unshift({time:this.time,message,kind});this.events.length=Math.min(9,this.events.length)}
@@ -86,8 +87,9 @@ export class Combat {
  }
  castSpell(id,p){
   if(!this.canCast(id,p))return false;
-  if(id==='AutoShot'){this.autoShot=!this.autoShot;return true}
-  if(id==='RaptorStrike'){this.raptorQueued=!this.raptorQueued;this.log(this.raptorQueued?'Raptor Strike queued':'Raptor Strike cancelled');return true}
+  if(id==='AutoShot'){this.setAutoShot(!this.autoShot);return true}
+  if(id==='RaptorStrike'){this.raptorQueued=!this.raptorQueued;if(this.raptorQueued)this.startMelee(p);this.log(this.raptorQueued?'Raptor Strike queued':'Raptor Strike cancelled');return true}
+  if(MELEE.has(id))this.startMelee(p);
   delete this.auras.feign;delete this.auras.eagleEye;delete this.auras.eyes;
   this.spend(id);
   const s=SPELLS[id];
@@ -121,7 +123,7 @@ export class Combat {
    case 'HuntersMark':this.buff('mark',duration);break;
    case 'TrueshotAura':this.buff('trueshot',duration);break;
    case 'FeignDeath':
-    this.autoShot=false;this.raptorQueued=false;
+    this.autoShot=false;this.meleeAttack=false;this.raptorQueued=false;
     if(this.random()<Math.max(0,.04-this.pct('survivalTactics')))this.log('Feign Death resisted','miss');
     else {this.buff('feign',duration);this.threat=0}break;
    case 'CallPet':this.summonPet(p);break;
@@ -172,7 +174,7 @@ export class Combat {
   const armor=Math.max(0,(this.options.targetArmor||0)-(this.debuffs.armorReduced?505:0));
   const mitigation=!periodic&&physical?1-armor/(armor+5500):1;
   const amount=Math.max(0,Math.floor(base*mitigation*(crit?2+bonus:1)+1e-9));
-  this.targetHealth=Math.max(0,this.targetHealth-amount);this.damage+=amount;
+  this.targetHealth=Math.max(0,this.targetHealth-amount);this.damage+=amount;this.meter.add(this.time,id,amount,crit,pet?'Pet':guardian?'Guardian':'Hunter');
   if(pet)this.petThreat+=amount;else this.threat+=amount;
   if(intimidating){this.control('stun',3);this.petThreat+=RECORDS.IntimidationTriggered.effects[0].value;delete this.auras.intimidation}
   if(amount){delete this.debuffs.freeze;delete this.debuffs.scatter;delete this.debuffs.fear}
@@ -388,11 +390,32 @@ export class Combat {
   for(const hawk of this.hawks)if(this.time<hawk.until&&this.time>=hawk.next&&this.targetHealth>0){hawk.next=this.time+2/this.meleeHaste();this.rollDamage((45+252*2/14)*(1+this.pct('unleashedFury'))*this.damageMultiplier('Hawk'),'Hawk',{guardian:true})}
   this.hawks=this.hawks.filter(h=>h.until>this.time);
   if(this.time>=this.nextIncoming){this.nextIncoming=this.time+2;this.incoming(p)}
-  const autoTracking=this.autoShot&&this.health>0&&this.targetHealth>0&&p.targeted!==false&&!this.auras.feign&&!this.auras.eyes&&!this.auras.eagleEye;
+  const autoTracking=(this.autoShot||this.meleeAttack||this.autoResetByMelee)&&this.health>0&&this.targetHealth>0&&p.targeted!==false&&!this.auras.feign&&!this.auras.eyes&&!this.auras.eagleEye;
   this.weaving.position(this.time,this.distance(p),this.minRangeFor('AutoShot'),this.rangeFor('AutoShot'),autoTracking);
   if(!autoTracking)this.expectedAutoShotAt=null;
   if(this.health<=0||this.auras.feign||this.auras.eyes||this.auras.eagleEye)return;
   this.tickWeapons(p,moving);
+ }
+ setAutoShot(enabled){
+  this.autoShot=enabled;this.autoWindupStart=null;this.autoWindupEnd=0;
+  if(enabled){this.meleeAttack=false;this.raptorQueued=false}
+  else{this.autoResetByMelee=false;this.expectedAutoShotAt=null;this.weaving.active=null;this.weaving.wasInside=null}
+ }
+ startMelee(p){
+  if(this.health<=0||p.targeted===false||this.targetHealth<=0||!this.targetVisible())return false;
+  this.meleeAttack=true;this.autoShot=false;this.autoWindupStart=null;this.autoWindupEnd=0;
+  delete this.auras.feign;delete this.auras.eagleEye;delete this.auras.eyes;return true;
+ }
+ toggleMelee(p){
+  if(this.meleeAttack){this.meleeAttack=false;this.raptorQueued=false;this.autoResetByMelee=false;this.expectedAutoShotAt=null;return true}
+  return this.startMelee(p);
+ }
+ weaveCombo(p){
+  let used=this.raptorQueued;
+  if(!this.raptorQueued&&this.canCast('RaptorStrike',p,true))used=this.castSpell('RaptorStrike',p)||used;
+  if(this.canCast('StriderKick',p,true))used=this.castSpell('StriderKick',p)||used;
+  if(!used)this.log('Raptor + Kick: '+this.abilityState('RaptorStrike',p).reason+' / '+this.abilityState('StriderKick',p).reason,'error');
+  return used;
  }
  restartAutoSwing(){
   this.autoSwingStart=this.time;
@@ -448,7 +471,8 @@ export class Combat {
         this.visualEvents.push({type:'shoot',id:'AutoShot'});
       }
     }
-    if(!this.cast&&this.facing(player)&&player.targeted!==false&&range<=this.rangeFor('RaptorStrike')&&this.targetHealth>0&&this.time>=this.nextMelee){
+    if(this.meleeAttack&&!this.cast&&this.targetVisible()&&this.facing(player)&&player.targeted!==false&&range<=this.rangeFor('RaptorStrike')&&this.targetHealth>0&&this.time>=this.nextMelee){
+      this.autoShot=false;
       this.weaving.melee();
       this.previousMelee=this.time;
       this.nextMelee=this.time+2.4/this.meleeHaste();
@@ -462,7 +486,7 @@ export class Combat {
       this.visualEvents.push({type:'melee',id});
       if(id==='Melee')this.rollDamage(this.meleeDamage()*this.damageMultiplier('Melee Swing'),'Melee Swing');else this.resolve(id);
     }
-    if(this.options.dualWield&&!this.cast&&player.targeted!==false&&this.facing(player)&&range<=this.rangeFor('RaptorStrike')&&this.targetHealth>0&&this.time>=this.nextOffhand){
+    if(this.meleeAttack&&this.targetVisible()&&this.options.dualWield&&!this.cast&&player.targeted!==false&&this.facing(player)&&range<=this.rangeFor('RaptorStrike')&&this.targetHealth>0&&this.time>=this.nextOffhand){
       this.nextOffhand=this.time+2.4/this.meleeHaste();
       this.rollDamage(this.meleeDamage()*.5*(1+this.pct('predatorsEdge',1))*this.damageMultiplier('Offhand'),'Offhand');
     }
