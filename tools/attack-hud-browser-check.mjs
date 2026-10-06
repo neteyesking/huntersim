@@ -28,7 +28,7 @@ try{
  await key('keyDown','ShiftLeft',8);assert.equal((await movement()).mouse.right,true);
  await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:650,y:250,button:'right',buttons:0,modifiers:8,clickCount:1});
  await until("parseFloat(document.getElementById('positionText').textContent)<4.8");await key('keyUp','KeyW',8);await wait(2600);
- assert.equal(await evaluate("!!document.querySelector('[data-damage-source=\"Melee Swing\"]')"),true);
+ assert.equal(await evaluate("!!document.querySelector('[data-damage-source=\"Melee Swing\"]')"),false);
  assert.equal(await evaluate("!!document.getElementById('meleeAttackBtn')"),false);
  assert.equal(await evaluate("document.getElementById('autoTrackToggle').getAttribute('aria-pressed')"),'false');
  const beforeMacro=await movement();await key('keyDown','KeyW',8);
@@ -55,7 +55,7 @@ try{
  await click('settingsClose');const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.argv[2]+'/compact-hud-dps.png',Buffer.from(shot.data,'base64'));
  await evaluate("document.getElementById('meterDetails').open=true");await click('weavingTab');assert.equal(await evaluate("document.getElementById('completedWeaves').textContent"),'1');
  await click('resetBtn');await wait(100);assert.equal(await evaluate("document.getElementById('meterRows').childElementCount"),0);
- assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',defaultMelee:true,autoStopsOnMeleeEntry:true,manualResume:true,rangedAbilityResume:true,movingShiftMacro:true,shiftMovement:true,shiftCamera:true,comboSlot:true,dpsMeter:true,weaveStats:true,runtimeErrors:errors.length}));
+ assert.equal(errors.length,0,JSON.stringify(errors));console.log(JSON.stringify({status:'passed',idleMeleeEntry:true,commandActivatedMelee:true,autoStopsOnMeleeEntry:true,manualResume:true,rangedAbilityResume:true,movingShiftMacro:true,shiftMovement:true,shiftCamera:true,comboSlot:true,dpsMeter:true,weaveStats:true,runtimeErrors:errors.length}));
 }finally{
  await key('keyUp','KeyW');await key('keyUp','KeyS');await key('keyUp','ShiftLeft');
  if(previous)await evaluate('Object.entries('+JSON.stringify(previous)+').forEach(([k,v])=>v===null?localStorage.removeItem(k):localStorage.setItem(k,v))');

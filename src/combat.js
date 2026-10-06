@@ -10,7 +10,7 @@ const tracks={TrackBeasts:'Beast',TrackDemons:'Demon',TrackDragonkin:'Dragonkin'
 export class Combat {
  constructor(random=Math.random,{rangedWeaponSpeed=2.8}={}){this.rangedWeaponSpeed=rangedWeaponSpeed;this.random=random;this.talents={};this.options={sparring:false,targetArmor:0,targetRegen:false,targetType:'Humanoid',enraged:false,hidden:false,dualWield:false,targetCombatReach:DEFAULT_TARGET_COMBAT_REACH};this.petFamily='Cat';this.reset()}
  reset(){
-  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,meleeAttack:true,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,autoStoppedInMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,mongooseSource:null,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
+  Object.assign(this,{moving:false,time:0,mana:3000,maxMana:3000,health:4000,maxHealth:4000,targetHealth:50000,targetMaxHealth:50000,targetMana:3000,damage:0,gcdUntil:0,gcdDuration:1.5,cooldowns:{},cooldownDurations:{},auras:{},debuffs:{},dots:{},sting:null,cast:null,projectiles:[],autoShot:true,meleeAttack:false,autoSwingStart:0,nextAuto:0,autoRetryAt:null,autoWindupStart:null,autoWindupEnd:0,lastAutoShot:null,expectedAutoShotAt:null,autoDelay:0,autoResetByMelee:false,autoStoppedInMelee:false,previousMelee:0,nextMelee:2.4,nextOffhand:2.4,raptorQueued:false,mongooseUntil:0,mongooseSource:null,counterUntil:0,aspect:'AspectOfTheHawk',tracking:'TrackHumanoids',events:[],textEvents:[],visualEvents:[],traps:[],hawks:[],lastSpend:-10,nextIncoming:2,nextSpirit:10,threat:0,petThreat:0,trainingOpen:false,pet:null});
   this.weaving=new WeavingStats();this.meter=new DamageMeter();
   this.log('Training begins.');
  }
@@ -417,7 +417,7 @@ export class Combat {
  }
  setAutoShot(enabled){
   this.autoShot=enabled;this.autoStoppedInMelee=false;this.autoWindupStart=null;this.autoWindupEnd=0;
-  if(enabled){this.meleeAttack=true;this.raptorQueued=false}
+  if(enabled){this.meleeAttack=false;this.raptorQueued=false}
   else{this.expectedAutoShotAt=null;this.weaving.active=null;this.weaving.wasInside=null}
  }
  startMelee(p){

@@ -22,7 +22,7 @@ try{
  await send('Page.bringToFront');await send('Page.navigate',{url:game});await until("!!document.getElementById('settingsBtn')");
  previous=await evaluate('Object.fromEntries('+JSON.stringify(keys)+'.map(k=>[k,localStorage.getItem(k)]))');await evaluate(JSON.stringify(keys)+'.forEach(k=>localStorage.removeItem(k))');await send('Page.reload');await wait(500);await until("!!document.getElementById('svPreset')");
  await click('svPreset');await until("!!document.querySelector('[data-damage-source=AutoShot]')");
- await key('keyDown','KeyW');await until("parseFloat(document.getElementById('positionText').textContent)<4.8");await key('keyUp','KeyW');await until("!!document.querySelector('[data-damage-source=\"Melee Swing\"]')");
+ await key('keyDown','KeyW');await until("parseFloat(document.getElementById('positionText').textContent)<4.8");await key('keyUp','KeyW');await evaluate("document.querySelector('#actionBar [data-spell=WingClip]').click()");await until("!!document.querySelector('[data-damage-source=\"Melee Swing\"]')");
  await key('keyDown','KeyS');await until("parseFloat(document.getElementById('positionText').textContent)>8");await key('keyUp','KeyS');
  for(let i=0;i<3;i++){await key('keyDown','KeyT');await key('keyUp','KeyT');await wait(100)}
  await key('keyDown','KeyD');await until(moduleExpr+'.then(m=>Math.cos(m.movementSnapshot().player.yaw)>.98)');await key('keyUp','KeyD');
